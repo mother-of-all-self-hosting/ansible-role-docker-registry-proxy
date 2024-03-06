@@ -1,0 +1,32 @@
+---
+
+- name: Fail if required docker-registry-proxy settings not defined
+  ansible.builtin.fail:
+    msg: >
+      You need to define a required configuration setting (`{{ item }}`).
+  when: "vars[item] == ''"
+  with_items:
+    - docker_registry_proxy_identifier
+    - docker_registry_proxy_uid
+    - docker_registry_proxy_gid
+    - docker_registry_proxy_hostname
+    - docker_registry_proxy_path_prefix
+    - docker_registry_proxy_container_network
+
+- name: Fail if docker_registry_proxy hosted at a subpath
+  ansible.builtin.fail:
+    msg: >
+      docker-registry-proxy can only be hosted at the base path (`/`), not at a subpath like `{{ docker_registry_proxy_path_prefix }}`).
+  when: "docker_registry_proxy_path_prefix != '/'"
+
+- name: Validate docker-registry-proxy Traefik settings
+  when: docker_registry_proxy_container_labels_traefik_enabled | bool
+  block:
+    - name: Fail if required docker-registry-proxy Traefik settings not defined
+      ansible.builtin.fail:
+        msg: >-
+          You need to define a required configuration setting (`{{ item }}`).
+      when: "vars[item] == ''"
+      with_items:
+        - docker_registry_proxy_container_labels_traefik_hostname
+        - docker_registry_proxy_container_labels_traefik_path_prefix

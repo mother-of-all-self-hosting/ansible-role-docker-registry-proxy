@@ -1,0 +1,168 @@
+---
+# Project source code URL: https://gitlab.com/etke.cc/docker-registry-proxy
+
+docker_registry_proxy_enabled: true
+
+docker_registry_proxy_identifier: docker-registry-proxy
+
+docker_registry_proxy_uid: ''
+docker_registry_proxy_gid: ''
+
+docker_registry_proxy_version: latest
+
+# The hostname at which docker_registry_proxy is served.
+docker_registry_proxy_hostname: ''
+
+# Log level
+docker_registry_proxy_loglevel: info
+# Port on which the proxy listens
+docker_registry_proxy_port: 8080
+# Optional sentry DSN
+docker_registry_proxy_sentry: ''
+# Cache TTL in minutes
+docker_registry_proxy_cache_ttl: 60
+# Cache size
+docker_registry_proxy_cache_size: 1000
+# /metrics endpoint username
+docker_registry_proxy_metrics_login: ''
+# /metrics endpoint password
+docker_registry_proxy_metrics_password: ''
+# /metrics endpoint allowed IPs
+docker_registry_proxy_metrics_ips: []
+# target (backend) scheme
+docker_registry_proxy_target_scheme: http
+# target (backend) host
+docker_registry_proxy_target_host: ''
+# static list of allowed IPs (GET, HEAD, OPTIONS)
+docker_registry_proxy_allowed_ips: []
+# static list of allowed user-agents (GET, HEAD, OPTIONS)
+docker_registry_proxy_allowed_uas: []
+# static list of trusted IPs (POST, PATCH, PUT, DELETE)
+docker_registry_proxy_trusted_ips: []
+
+# The path at which docker_registry_proxy is served.
+# This value must be `/`
+#
+# Hosting under a subpath is not possible yet due to docker_registry_proxy limitations.
+docker_registry_proxy_path_prefix: /
+
+docker_registry_proxy_base_path: "/{{ docker_registry_proxy_identifier }}"
+
+docker_registry_proxy_container_image: "{{ docker_registry_proxy_container_image_registry_prefix }}etke.cc/docker-registry-proxy:{{ docker_registry_proxy_container_image_tag }}"
+docker_registry_proxy_container_image_registry_prefix: registry.gitlab.com/
+docker_registry_proxy_container_image_tag: "{{ docker_registry_proxy_version }}"
+docker_registry_proxy_container_image_force_pull: "{{ docker_registry_proxy_container_image.endswith(':latest') }}"
+
+# The base container network. It will be auto-created by this role if it doesn't exist already.
+docker_registry_proxy_container_network: "{{ docker_registry_proxy_identifier }}"
+
+# A list of additional container networks that the container would be connected to.
+# The role does not create these networks, so make sure they already exist.
+# Use this to expose this container to another reverse proxy, which runs in a different container network.
+docker_registry_proxy_container_additional_networks: []
+
+# docker_registry_proxy_container_labels_traefik_enabled controls whether labels to assist a Traefik reverse-proxy will be attached to the container.
+# See `../templates/labels.j2` for details.
+#
+# To inject your own other container labels, see `docker_registry_proxy_container_labels_additional_labels`.
+docker_registry_proxy_container_labels_traefik_enabled: true
+docker_registry_proxy_container_labels_traefik_docker_network: "{{ docker_registry_proxy_container_network }}"
+docker_registry_proxy_container_labels_traefik_hostname: "{{ docker_registry_proxy_hostname }}"
+docker_registry_proxy_container_labels_traefik_path_prefix: "{{ docker_registry_proxy_path_prefix }}"
+docker_registry_proxy_container_labels_traefik_rule: "Host(`{{ docker_registry_proxy_container_labels_traefik_hostname }}`){% if docker_registry_proxy_container_labels_traefik_path_prefix != '/' %} && PathPrefix(`{{ docker_registry_proxy_container_labels_traefik_path_prefix }}`){% endif %}"  # noqa yaml[line-length]
+docker_registry_proxy_container_labels_traefik_priority: 0
+docker_registry_proxy_container_labels_traefik_entrypoints: web-secure
+docker_registry_proxy_container_labels_traefik_tls: "{{ docker_registry_proxy_container_labels_traefik_entrypoints != 'web' }}"
+docker_registry_proxy_container_labels_traefik_tls_certResolver: default  # noqa var-naming
+
+# Controls which additional headers to attach to all HTTP responses.
+# To add your own custom response headers, use `docker_registry_proxy_container_labels_traefik_additional_response_headers_custom`
+docker_registry_proxy_container_labels_traefik_additional_response_headers: "{{ docker_registry_proxy_container_labels_traefik_additional_response_headers_auto | combine(docker_registry_proxy_container_labels_traefik_additional_response_headers_custom) }}"  # noqa yaml[line-length]
+docker_registry_proxy_container_labels_traefik_additional_response_headers_auto: |
+  {{
+    {}
+    | combine ({'X-XSS-Protection': docker_registry_proxy_http_header_xss_protection} if docker_registry_proxy_http_header_xss_protection else {})
+    | combine ({'X-Frame-Options': docker_registry_proxy_http_header_frame_options} if docker_registry_proxy_http_header_frame_options else {})
+    | combine ({'X-Content-Type-Options': docker_registry_proxy_http_header_content_type_options} if docker_registry_proxy_http_header_content_type_options else {})
+    | combine ({'Content-Security-Policy': docker_registry_proxy_http_header_content_security_policy} if docker_registry_proxy_http_header_content_security_policy else {})
+    | combine ({'Permission-Policy': docker_registry_proxy_http_header_content_permission_policy} if docker_registry_proxy_http_header_content_permission_policy else {})
+    | combine ({'Strict-Transport-Security': docker_registry_proxy_http_header_strict_transport_security} if docker_registry_proxy_http_header_strict_transport_security and docker_registry_proxy_container_labels_traefik_tls else {})
+  }}
+docker_registry_proxy_container_labels_traefik_additional_response_headers_custom: {}
+
+# docker_registry_proxy_container_labels_additional_labels contains a multiline string with additional labels to add to the container label file.
+# See `../templates/labels.j2` for details.
+#
+# Example:
+# docker_registry_proxy_container_labels_additional_labels: |
+#   my.label=1
+#   another.label="here"
+docker_registry_proxy_container_labels_additional_labels: ''
+
+# Specifies how often the container health-check will run.
+#
+# For Traefik based setups, it's important that the interval is short,
+# because the interval value also specifies the "initial wait time".
+# This is a Docker (moby) bug: https://github.com/moby/moby/issues/33410
+# Without a successful healthcheck, Traefik will not register the service for reverse-proxying.
+# Thus, the health interval determines the initial start-up time -- the smaller, the better.
+#
+# For non-Traefik setups, we use the default healthcheck interval (60s) to decrease overhead.
+docker_registry_proxy_container_health_interval: "{{ '5s' if docker_registry_proxy_container_labels_traefik_enabled else '60s' }}"
+
+# A list of extra arguments to pass to the container
+docker_registry_proxy_container_extra_arguments: []
+
+# Specifies the value of the `X-XSS-Protection` header
+# Stops pages from loading when they detect reflected cross-site scripting (XSS) attacks.
+#
+# Learn more about it is here:
+# - https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/X-XSS-Protection
+# - https://portswigger.net/web-security/cross-site-scripting/reflected
+docker_registry_proxy_http_header_xss_protection: "1; mode=block"
+
+# Specifies the value of the `X-Frame-Options` header which controls whether framing can happen.
+# See: https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/X-Frame-Options
+docker_registry_proxy_http_header_frame_options: SAMEORIGIN
+
+# Specifies the value of the `X-Content-Type-Options` header.
+# See: https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/X-Content-Type-Options
+docker_registry_proxy_http_header_content_type_options: nosniff
+
+# Specifies the value of the `Content-Security-Policy` header.
+# See: https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Content-Security-Policy
+docker_registry_proxy_http_header_content_security_policy: frame-ancestors 'self'
+
+# Specifies the value of the `Permission-Policy` header.
+# See: https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Permission-Policy
+docker_registry_proxy_http_header_content_permission_policy: "{{ 'interest-cohort=()' if docker_registry_proxy_floc_optout_enabled else '' }}"
+
+# Specifies the value of the `Strict-Transport-Security` header.
+# See: https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Strict-Transport-Security
+docker_registry_proxy_http_header_strict_transport_security: "max-age=31536000; includeSubDomains{{ '; preload' if docker_registry_proxy_hsts_preload_enabled else '' }}"
+
+# Controls whether to send a "Permissions-Policy interest-cohort=();" header along with all responses
+#
+# Learn more about what it is here:
+# - https://www.eff.org/deeplinks/2021/03/googles-floc-terrible-idea
+# - https://paramdeo.com/blog/opting-your-website-out-of-googles-floc-network
+# - https://amifloced.org/
+#
+# Of course, a better solution is to just stop using browsers (like Chrome), which participate in such tracking practices.
+# See: `docker_registry_proxy_content_permission_policy`
+docker_registry_proxy_floc_optout_enabled: true
+
+# Controls if HSTS preloading is enabled
+#
+# In its strongest and recommended form, the [HSTS policy](https://www.chromium.org/hsts) includes all subdomains, and
+# indicates a willingness to be "preloaded" into browsers:
+# `Strict-Transport-Security: max-age=31536000; includeSubDomains; preload`
+# For more information visit:
+# - https://en.wikipedia.org/wiki/HTTP_Strict_Transport_Security
+# - https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Strict-Transport-Security
+# - https://hstspreload.org/#opt-in
+# See: `docker_registry_proxy_http_header_strict_transport_security`
+docker_registry_proxy_hsts_preload_enabled: false
+
+# List of systemd services that kuma.service depends on
+docker_registry_proxy_systemd_required_services_list: ['docker.service']

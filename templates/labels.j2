@@ -1,0 +1,33 @@
+{% if docker_registry_proxy_container_labels_traefik_enabled %}
+traefik.enable=true
+
+{% if docker_registry_proxy_container_labels_traefik_docker_network %}
+traefik.docker.network={{ docker_registry_proxy_container_labels_traefik_docker_network }}
+{% endif %}
+
+{% set middlewares = [] %}
+{% if docker_registry_proxy_container_labels_traefik_additional_response_headers.keys() | length > 0 %}
+{% for name, value in docker_registry_proxy_container_labels_traefik_additional_response_headers.items() %}
+traefik.http.middlewares.{{ docker_registry_proxy_identifier }}-add-response-headers.headers.customresponseheaders.{{ name }}={{ value }}
+{% endfor %}
+{% set middlewares = middlewares + [docker_registry_proxy_identifier + '-add-response-headers'] %}
+{% endif %}
+
+traefik.http.routers.{{ docker_registry_proxy_identifier }}.rule={{ docker_registry_proxy_container_labels_traefik_rule }}
+{% if docker_registry_proxy_container_labels_traefik_priority | int > 0 %}
+traefik.http.routers.{{ docker_registry_proxy_identifier }}.priority={{ docker_registry_proxy_container_labels_traefik_priority }}
+{% endif %}
+traefik.http.routers.{{ docker_registry_proxy_identifier }}.service={{ docker_registry_proxy_identifier }}
+{% if middlewares | length > 0 %}
+traefik.http.routers.{{ docker_registry_proxy_identifier }}.middlewares={{ middlewares | join(',') }}
+{% endif %}
+traefik.http.routers.{{ docker_registry_proxy_identifier }}.entrypoints={{ docker_registry_proxy_container_labels_traefik_entrypoints }}
+traefik.http.routers.{{ docker_registry_proxy_identifier }}.tls={{ docker_registry_proxy_container_labels_traefik_tls | to_json }}
+{% if docker_registry_proxy_container_labels_traefik_tls %}
+traefik.http.routers.{{ docker_registry_proxy_identifier }}.tls.certResolver={{ docker_registry_proxy_container_labels_traefik_tls_certResolver }}
+{% endif %}
+
+traefik.http.services.{{ docker_registry_proxy_identifier }}.loadbalancer.server.port=8080
+{% endif %}
+
+{{ docker_registry_proxy_container_labels_additional_labels }}

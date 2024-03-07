@@ -8,7 +8,7 @@ docker_registry_proxy_identifier: docker-registry-proxy
 docker_registry_proxy_uid: ''
 docker_registry_proxy_gid: ''
 
-docker_registry_proxy_version: v1.0.0
+docker_registry_proxy_version: v1.1.0
 
 # The hostname at which docker_registry_proxy is served.
 docker_registry_proxy_hostname: ''
@@ -37,6 +37,12 @@ docker_registry_proxy_target_host: ''
 docker_registry_proxy_allowed_ips: []
 # static list of allowed user-agents (GET, HEAD, OPTIONS)
 docker_registry_proxy_allowed_uas: []
+# url of the auth provider for dynamic IP filtering, MUST contain %s for the IP
+docker_registry_proxy_allowed_provider_url: ''
+# optional basic auth username
+docker_registry_proxy_allowed_provider_login: ''
+# optional basic auth password
+docker_registry_proxy_allowed_provider_password: ''
 # static list of trusted IPs (POST, PATCH, PUT, DELETE)
 docker_registry_proxy_trusted_ips: []
 

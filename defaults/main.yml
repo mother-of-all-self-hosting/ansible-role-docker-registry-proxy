@@ -8,7 +8,7 @@ docker_registry_proxy_identifier: docker-registry-proxy
 docker_registry_proxy_uid: ''
 docker_registry_proxy_gid: ''
 
-docker_registry_proxy_version: v1.1.0
+docker_registry_proxy_version: v1.1.1
 
 # The hostname at which docker_registry_proxy is served.
 docker_registry_proxy_hostname: ''

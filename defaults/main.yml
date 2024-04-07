@@ -8,7 +8,7 @@ docker_registry_proxy_identifier: docker-registry-proxy
 docker_registry_proxy_uid: ''
 docker_registry_proxy_gid: ''
 
-docker_registry_proxy_version: v1.1.1
+docker_registry_proxy_version: v1.2.0
 
 # The hostname at which docker_registry_proxy is served.
 docker_registry_proxy_hostname: ''
@@ -19,6 +19,10 @@ docker_registry_proxy_loglevel: info
 docker_registry_proxy_port: 8080
 # Optional sentry DSN
 docker_registry_proxy_sentry: ''
+# Optional healthchecks.io base url (default: https://hc-ping.com)
+docker_registry_proxy_hc_url: ''
+# Optional healthchecks.io check UUID
+docker_registry_proxy_hc_uuid: ''
 # Cache TTL in minutes
 docker_registry_proxy_cache_ttl: 60
 # Cache size

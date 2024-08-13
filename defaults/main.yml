@@ -1,5 +1,5 @@
 ---
-# Project source code URL: https://gitlab.com/etke.cc/docker-registry-proxy
+# Project source code URL: https://github.com/etkecc/docker-registry-proxy
 
 docker_registry_proxy_enabled: true
 
@@ -8,7 +8,7 @@ docker_registry_proxy_identifier: docker-registry-proxy
 docker_registry_proxy_uid: ''
 docker_registry_proxy_gid: ''
 
-docker_registry_proxy_version: v1.2.3
+docker_registry_proxy_version: v1.2.4
 
 # The hostname at which docker_registry_proxy is served.
 docker_registry_proxy_hostname: ''
@@ -62,8 +62,8 @@ docker_registry_proxy_path_prefix: /
 
 docker_registry_proxy_base_path: "/{{ docker_registry_proxy_identifier }}"
 
-docker_registry_proxy_container_image: "{{ docker_registry_proxy_container_image_registry_prefix }}etke.cc/docker-registry-proxy:{{ docker_registry_proxy_container_image_tag }}"
-docker_registry_proxy_container_image_registry_prefix: registry.gitlab.com/
+docker_registry_proxy_container_image: "{{ docker_registry_proxy_container_image_registry_prefix }}etkecc/docker-registry-proxy:{{ docker_registry_proxy_container_image_tag }}"
+docker_registry_proxy_container_image_registry_prefix: ghcr.io/
 docker_registry_proxy_container_image_tag: "{{ docker_registry_proxy_version }}"
 docker_registry_proxy_container_image_force_pull: "{{ docker_registry_proxy_container_image.endswith(':latest') }}"
 

@@ -31,24 +31,16 @@ jobs:
       - name: Find latest Renovate Docker commit
         id: find_renovate_commit
         run: |
-          VERSION=""
-          HASH=""
-
           git log -n 20 --pretty=format:'%H|%an|%s' | while IFS='|' read -r commit author subject; do
-            echo "Processing commit: $commit by $author with subject: $subject"
             if [[ "$author" == "renovate[bot]" && "$subject" == *"Docker tag to "* ]]; then
+              echo "Found Renovate commit: $commit with version: $VERSION"
               VERSION_PART="${subject#*Docker tag to }"
               VERSION="$(echo "$VERSION_PART" | xargs)"
-              HASH="$commit"
-              echo "Found Renovate commit: $commit with version: $VERSION"
+              echo "new_version=$VERSION" >> $GITHUB_OUTPUT
+              echo "commit_hash=$commit" >> $GITHUB_OUTPUT
               break
             fi
           done
-
-          echo "Found version: $VERSION at commit: $HASH"
-
-          echo "new_version=$VERSION" >> $GITHUB_OUTPUT
-          echo "commit_hash=$HASH" >> $GITHUB_OUTPUT
 
       - name: Check if tag already exists
         id: check_tag

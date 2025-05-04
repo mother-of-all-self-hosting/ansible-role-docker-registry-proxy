@@ -35,10 +35,12 @@ jobs:
           HASH=""
 
           git log -n 20 --pretty=format:'%H|%an|%s' | while IFS='|' read -r commit author subject; do
+            echo "Processing commit: $commit by $author with subject: $subject"
             if [[ "$author" == "renovate[bot]" && "$subject" == *"Docker tag to "* ]]; then
               VERSION_PART="${subject#*Docker tag to }"
               VERSION="$(echo "$VERSION_PART" | xargs)"
               HASH="$commit"
+              echo "Found Renovate commit: $commit with version: $VERSION"
               break
             fi
           done

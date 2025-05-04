@@ -33,11 +33,11 @@ jobs:
         run: |
           git log -n 20 --pretty=format:'%H|%an|%s' | while IFS='|' read -r commit author subject; do
             if [[ "$author" == "renovate[bot]" && "$subject" == *"Docker tag to "* ]]; then
-              echo "Found Renovate commit: $commit with version: $VERSION"
               VERSION_PART="${subject#*Docker tag to }"
               VERSION="$(echo "$VERSION_PART" | xargs)"
               echo "new_version=$VERSION" >> $GITHUB_OUTPUT
               echo "commit_hash=$commit" >> $GITHUB_OUTPUT
+              echo "Found Renovate commit: $commit with version: $VERSION"
               break
             fi
           done

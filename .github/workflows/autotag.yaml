@@ -6,7 +6,8 @@ on:
       - main
 
 permissions:
-  contents: write  # Required to push tags
+  contents: write # required to push tags
+  workflows: write # required to tag commits that contains workflow changes (Renovate does not do that, but if between an old tag and a new would-be tag there is a commit that changes a workflow, usually by maintainers of the repo, this would be needed)
   actions: read
 
 jobs:

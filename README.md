@@ -1,3 +1,9 @@
+<!--
+SPDX-FileCopyrightText: 2024 Nikita Chernyi
+
+SPDX-License-Identifier: AGPL-3.0-or-later
+-->
+
 # Docker Registry Proxy Ansible role
 
 This is an [Ansible](https://www.ansible.com/) role which installs [Docker Registry Proxy](https://gitlab.com/etke.cc/docker-registry-proxy) to run as a [Docker](https://www.docker.com/) container wrapped in a systemd service.

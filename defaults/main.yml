@@ -42,7 +42,9 @@ docker_registry_proxy_container_network: "{{ docker_registry_proxy_identifier }}
 # A list of additional container networks that the container would be connected to.
 # The role does not create these networks, so make sure they already exist.
 # Use this to expose this container to another reverse proxy, which runs in a different container network.
-docker_registry_proxy_container_additional_networks: []
+docker_registry_proxy_container_additional_networks: "{{ docker_registry_proxy_container_additional_networks_auto + docker_registry_proxy_container_additional_networks_custom }}"
+docker_registry_proxy_container_additional_networks_auto: []
+docker_registry_proxy_container_additional_networks_custom: []
 
 # docker_registry_proxy_container_labels_traefik_enabled controls whether labels to assist a Traefik reverse-proxy will be attached to the container.
 # See `../templates/labels.j2` for details.

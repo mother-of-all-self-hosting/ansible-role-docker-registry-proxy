@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
 ---
-- name: Ensure Docker Registry Proxy paths exist
+- name: Ensure Docker Registry Proxy path exists
   ansible.builtin.file:
     path: "{{ item }}"
     state: directory
@@ -21,8 +21,8 @@
     owner: "{{ docker_registry_proxy_uid }}"
     group: "{{ docker_registry_proxy_gid }}"
   with_items:
-    - labels
     - env
+    - labels
 
 - name: Ensure Docker Registry Proxy container image is pulled
   community.docker.docker_image:
@@ -30,6 +30,10 @@
     source: "{{ 'pull' if ansible_version.major > 2 or ansible_version.minor > 7 else omit }}"
     force_source: "{{ docker_registry_proxy_container_image_force_pull if ansible_version.major > 2 or ansible_version.minor >= 8 else omit }}"
     force: "{{ omit if ansible_version.major > 2 or ansible_version.minor >= 8 else docker_registry_proxy_container_image_force_pull }}"
+  register: result
+  retries: "{{ devture_playbook_help_container_retries_count }}"
+  delay: "{{ devture_playbook_help_container_retries_delay }}"
+  until: result is not failed
 
 - name: Ensure Docker Registry Proxy container network is created
   community.general.docker_network:

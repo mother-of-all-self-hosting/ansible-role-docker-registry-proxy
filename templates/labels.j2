@@ -33,7 +33,7 @@ traefik.http.routers.{{ docker_registry_proxy_identifier }}.tls={{ docker_regist
 traefik.http.routers.{{ docker_registry_proxy_identifier }}.tls.certResolver={{ docker_registry_proxy_container_labels_traefik_tls_certResolver }}
 {% endif %}
 
-traefik.http.services.{{ docker_registry_proxy_identifier }}.loadbalancer.server.port=8080
+traefik.http.services.{{ docker_registry_proxy_identifier }}.loadbalancer.server.port={{ docker_registry_proxy_port }}
 {% endif %}
 
 {{ docker_registry_proxy_container_labels_additional_labels }}

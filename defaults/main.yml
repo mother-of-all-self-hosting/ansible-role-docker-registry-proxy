@@ -189,5 +189,6 @@ docker_registry_proxy_allowed_provider_login: ''
 docker_registry_proxy_allowed_provider_password: ''
 # static list of trusted IPs (POST, PATCH, PUT, DELETE)
 docker_registry_proxy_trusted_ips: []
-# Additional env vars
-docker_registry_proxy_environment_variables_extension: ''
+
+# Additional environment variables.
+docker_registry_proxy_environment_variables_additional_variables: ''

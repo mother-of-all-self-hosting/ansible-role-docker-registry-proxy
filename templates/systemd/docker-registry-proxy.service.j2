@@ -10,6 +10,9 @@ Description=Docker Registry Proxy ({{ docker_registry_proxy_identifier }})
 Requires={{ service }}
 After={{ service }}
 {% endfor %}
+{% for service in docker_registry_proxy_systemd_wanted_services_list %}
+Wants={{ service }}
+{% endfor %}
 DefaultDependencies=no
 
 [Service]

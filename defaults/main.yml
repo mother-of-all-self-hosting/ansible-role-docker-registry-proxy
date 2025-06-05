@@ -1,4 +1,8 @@
-# SPDX-FileCopyrightText: 2024 Nikita Chernyi
+# SPDX-FileCopyrightText: 2023 - 2024 Nikita Chernyi
+# SPDX-FileCopyrightText: 2023 - 2025 Slavi Pantaleev
+# SPDX-FileCopyrightText: 2024 Sergio Durigan Junior
+# SPDX-FileCopyrightText: 2025 MASH project contributors
+# SPDX-FileCopyrightText: 2025 Suguru Hirahara
 #
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
@@ -185,3 +189,6 @@ docker_registry_proxy_hsts_preload_enabled: false
 
 # List of systemd services that kuma.service depends on
 docker_registry_proxy_systemd_required_services_list: ['docker.service']
+
+# List of systemd services that the Docker Registry Proxy systemd service wants
+docker_registry_proxy_systemd_wanted_services_list: []

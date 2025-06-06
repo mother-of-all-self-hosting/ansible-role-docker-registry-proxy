@@ -3,8 +3,7 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
 ---
-
-- name: Ensure docker-registry-proxy paths exist
+- name: Ensure Docker Registry Proxy paths exist
   ansible.builtin.file:
     path: "{{ item }}"
     state: directory
@@ -14,7 +13,7 @@
   with_items:
     - "{{ docker_registry_proxy_base_path }}"
 
-- name: Ensure docker_registry_proxy support files installed
+- name: Ensure Docker Registry Proxy support files installed
   ansible.builtin.template:
     src: "{{ role_path }}/templates/{{ item }}.j2"
     dest: "{{ docker_registry_proxy_base_path }}/{{ item }}"
@@ -25,21 +24,21 @@
     - labels
     - env
 
-- name: Ensure docker-registry-proxy container image is pulled
+- name: Ensure Docker Registry Proxy container image is pulled
   community.docker.docker_image:
     name: "{{ docker_registry_proxy_container_image }}"
     source: "{{ 'pull' if ansible_version.major > 2 or ansible_version.minor > 7 else omit }}"
     force_source: "{{ docker_registry_proxy_container_image_force_pull if ansible_version.major > 2 or ansible_version.minor >= 8 else omit }}"
     force: "{{ omit if ansible_version.major > 2 or ansible_version.minor >= 8 else docker_registry_proxy_container_image_force_pull }}"
 
-- name: Ensure docker-registry-proxy container network is created
+- name: Ensure Docker Registry Proxy container network is created
   community.general.docker_network:
     enable_ipv6: "{{ devture_systemd_docker_base_ipv6_enabled }}"
     name: "{{ docker_registry_proxy_container_network }}"
     driver: bridge
     driver_options: "{{ devture_systemd_docker_base_container_networks_driver_options }}"
 
-- name: Ensure docker-registry-proxy systemd service is present
+- name: Ensure Docker Registry Proxy systemd service is present
   ansible.builtin.template:
     src: "{{ role_path }}/templates/systemd/docker-registry-proxy.service.j2"
     dest: "{{ devture_systemd_docker_base_systemd_path }}/{{ docker_registry_proxy_identifier }}.service"

@@ -15,7 +15,7 @@ docker_registry_proxy_gid: ''
 # renovate: datasource=docker depName=ghcr.io/etkecc/docker-registry-proxy
 docker_registry_proxy_version: v1.2.7
 
-# The hostname at which docker_registry_proxy is served.
+# The hostname at which Docker Registry Proxy is served.
 docker_registry_proxy_hostname: ''
 
 # Log level
@@ -59,10 +59,10 @@ docker_registry_proxy_trusted_ips: []
 # Additional env vars
 docker_registry_proxy_environment_variables_extension: ''
 
-# The path at which docker_registry_proxy is served.
+# The path at which Docker Registry Proxy is served.
 # This value must be `/`
 #
-# Hosting under a subpath is not possible yet due to docker_registry_proxy limitations.
+# Hosting under a subpath is not possible yet due to Docker Registry Proxy limitations.
 docker_registry_proxy_path_prefix: /
 
 docker_registry_proxy_base_path: "/{{ docker_registry_proxy_identifier }}"

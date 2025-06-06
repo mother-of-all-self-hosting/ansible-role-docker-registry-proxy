@@ -3,28 +3,25 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
 ---
-
-- name: Perform docker-registry-proxy installation tasks
+- name: Perform Docker Registry Proxy installation tasks
   tags:
     - setup-all
     - setup-docker-registry-proxy
     - install-all
     - install-docker-registry-proxy
   block:
-    - name: Validate docker-registry-proxy configuration
+    - name: Validate Docker Registry Proxy configuration
       when: docker_registry_proxy_enabled | bool
       ansible.builtin.include_tasks: "{{ role_path }}/tasks/validate_config.yml"
-
-    - name: Install docker-registry-proxy
+    - name: Install Docker Registry Proxy
       when: docker_registry_proxy_enabled | bool
       ansible.builtin.include_tasks: "{{ role_path }}/tasks/install.yml"
 
-
-- name: Perform docker-registry-proxy uninstallation tasks
+- name: Perform Docker Registry Proxy uninstallation tasks
   tags:
     - setup-all
     - setup-docker-registry-proxy
   block:
-    - name: Uninstall docker-registry-proxy
+    - name: Uninstall Docker Registry Proxy
       when: not docker_registry_proxy_enabled | bool
       ansible.builtin.include_tasks: "{{ role_path }}/tasks/uninstall.yml"

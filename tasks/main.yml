@@ -4,6 +4,7 @@
 
 ---
 - name: Perform Docker Registry Proxy installation tasks
+  when: docker_registry_proxy_enabled | bool
   tags:
     - setup-all
     - setup-docker-registry-proxy
@@ -11,17 +12,15 @@
     - install-docker-registry-proxy
   block:
     - name: Validate Docker Registry Proxy configuration
-      when: docker_registry_proxy_enabled | bool
       ansible.builtin.include_tasks: "{{ role_path }}/tasks/validate_config.yml"
     - name: Install Docker Registry Proxy
-      when: docker_registry_proxy_enabled | bool
       ansible.builtin.include_tasks: "{{ role_path }}/tasks/install.yml"
 
 - name: Perform Docker Registry Proxy uninstallation tasks
+  when: not docker_registry_proxy_enabled | bool
   tags:
     - setup-all
     - setup-docker-registry-proxy
   block:
     - name: Uninstall Docker Registry Proxy
-      when: not docker_registry_proxy_enabled | bool
       ansible.builtin.include_tasks: "{{ role_path }}/tasks/uninstall.yml"

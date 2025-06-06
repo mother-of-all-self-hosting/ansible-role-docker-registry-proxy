@@ -185,9 +185,9 @@ docker_registry_proxy_allowed_ips: []
 docker_registry_proxy_allowed_uas: []
 # url of the auth provider for dynamic IP filtering, MUST contain %s for the IP
 docker_registry_proxy_allowed_provider_url: ''
-# optional basic auth username
+# optional HTTP Basic authentication username
 docker_registry_proxy_allowed_provider_login: ''
-# optional basic auth password
+# optional HTTP Basic authentication password
 docker_registry_proxy_allowed_provider_password: ''
 # static list of trusted IPs (POST, PATCH, PUT, DELETE)
 docker_registry_proxy_trusted_ips: []

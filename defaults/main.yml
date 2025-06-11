@@ -36,6 +36,12 @@ docker_registry_proxy_container_image_registry_prefix_upstream: "{{ docker_regis
 docker_registry_proxy_container_image_registry_prefix_upstream_default: ghcr.io/
 docker_registry_proxy_container_image_force_pull: "{{ docker_registry_proxy_container_image.endswith(':latest') }}"
 
+docker_registry_proxy_container_image_self_build: false
+docker_registry_proxy_container_image_name: "etkecc/docker-registry-proxy:{{ docker_registry_proxy_container_repo_version }}"
+docker_registry_proxy_container_repo: "https://github.com/etkecc/docker-registry-proxy.git"
+docker_registry_proxy_container_repo_version: "{{ docker_registry_proxy_version if docker_registry_proxy_version != 'latest' else 'main' }}"
+docker_registry_proxy_container_src_files_path: "{{ docker_registry_proxy_base_path }}/docker-src"
+
 # The base container network. It will be auto-created by this role if it doesn't exist already.
 docker_registry_proxy_container_network: "{{ docker_registry_proxy_identifier }}"
 

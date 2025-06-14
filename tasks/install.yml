@@ -55,21 +55,21 @@
   block:
     - name: Ensure Docker Registry Proxy repository is present on self-build
       ansible.builtin.git:
-        repo: "{{ docker_registry_proxy_container_repo }}"
-        version: "{{ docker_registry_proxy_container_repo_version }}"
-        dest: "{{ docker_registry_proxy_container_src_files_path }}"
+        repo: "{{ docker_registry_proxy_container_image_self_build_repo }}"
+        version: "{{ docker_registry_proxy_container_image_self_build_repo_version }}"
+        dest: "{{ docker_registry_proxy_container_image_self_build_src_files_path }}"
         force: "yes"
       register: docker_registry_proxy_git_pull_results
 
     - name: Ensure Docker Registry Proxy container image is built
       community.docker.docker_image:
-        name: "{{ docker_registry_proxy_container_image_name }}"
+        name: "{{ docker_registry_proxy_container_image_self_build_name }}"
         source: build
         force_source: "{{ docker_registry_proxy_git_pull_results.changed if ansible_version.major > 2 or ansible_version.minor >= 8 else omit }}"
         force: "{{ omit if ansible_version.major > 2 or ansible_version.minor >= 8 else docker_registry_proxy_git_pull_results.changed }}"
         build:
           dockerfile: Dockerfile
-          path: "{{ docker_registry_proxy_container_src_files_path }}"
+          path: "{{ docker_registry_proxy_container_image_self_build_src_files_path }}"
           pull: true
           args:
 

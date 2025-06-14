@@ -33,7 +33,8 @@ ExecStartPre={{ devture_systemd_docker_base_host_command_docker }} create \
 			{% for arg in docker_registry_proxy_container_extra_arguments %}
 			{{ arg }} \
 			{% endfor %}
-			{{ docker_registry_proxy_container_image }}
+			{{ docker_registry_proxy_container_image_self_build_name if docker_registry_proxy_container_image_self_build else docker_registry_proxy_container_image }}
+
 
 {% for network in docker_registry_proxy_container_additional_networks %}
 ExecStartPre={{ devture_systemd_docker_base_host_command_docker }} network connect {{ network }} {{ docker_registry_proxy_identifier }}

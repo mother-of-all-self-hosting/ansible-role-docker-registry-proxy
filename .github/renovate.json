@@ -1,10 +1,22 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": [
-    "config:recommended"
+    "config:recommended",
+    ":semanticCommitsDisabled"
   ],
   "labels": [
     "dependencies"
+  ],
+  "packageRules": [
+    {
+      "matchPackageNames": [
+        "/ansible-lint/",
+        "/pre-commit-hooks/"
+      ],
+      "enabled": true,
+      "automerge": true,
+      "automergeType": "pr"
+    }
   ],
   "customManagers": [
     {

@@ -15,7 +15,7 @@
 
 - name: Fail if required Docker Registry Proxy settings not defined
   ansible.builtin.fail:
-    msg: >
+    msg: >-
       You need to define a required configuration setting (`{{ item }}`).
   when: "vars[item] == ''"
   with_items:
@@ -28,7 +28,7 @@
 
 - name: Fail if Docker Registry Proxy hosted at a subpath
   ansible.builtin.fail:
-    msg: >
+    msg: >-
       Docker Registry Proxy can only be hosted at the base path (`/`), not at a subpath like `{{ docker_registry_proxy_path_prefix }}`).
   when: "docker_registry_proxy_path_prefix != '/'"
 

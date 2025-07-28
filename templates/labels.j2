@@ -12,6 +12,14 @@ traefik.docker.network={{ docker_registry_proxy_container_labels_traefik_docker_
 {% endif %}
 
 {% set middlewares = [] %}
+
+{% if docker_registry_proxy_container_labels_traefik_additional_request_headers.keys() | length > 0 %}
+{% for name, value in docker_registry_proxy_container_labels_traefik_additional_request_headers.items() %}
+traefik.http.middlewares.{{ docker_registry_proxy_identifier }}-add-request-headers.headers.customrequestheaders.{{ name }}={{ value }}
+{% endfor %}
+{% set middlewares = middlewares + [docker_registry_proxy_identifier + '-add-request-headers'] %}
+{% endif %}
+
 {% if docker_registry_proxy_container_labels_traefik_additional_response_headers.keys() | length > 0 %}
 {% for name, value in docker_registry_proxy_container_labels_traefik_additional_response_headers.items() %}
 traefik.http.middlewares.{{ docker_registry_proxy_identifier }}-add-response-headers.headers.customresponseheaders.{{ name }}={{ value }}

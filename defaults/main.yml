@@ -66,6 +66,12 @@ docker_registry_proxy_container_labels_traefik_entrypoints: web-secure
 docker_registry_proxy_container_labels_traefik_tls: "{{ docker_registry_proxy_container_labels_traefik_entrypoints != 'web' }}"
 docker_registry_proxy_container_labels_traefik_tls_certResolver: default  # noqa var-naming
 
+# Controls which additional headers to attach to all HTTP requests.
+# To add your own custom request headers, use `docker_registry_proxy_container_labels_traefik_additional_request_headers_custom`
+docker_registry_proxy_container_labels_traefik_additional_request_headers: "{{ docker_registry_proxy_container_labels_traefik_additional_request_headers_auto | combine(docker_registry_proxy_container_labels_traefik_additional_request_headers_custom) }}"
+docker_registry_proxy_container_labels_traefik_additional_request_headers_auto: {}
+docker_registry_proxy_container_labels_traefik_additional_request_headers_custom: {}
+
 # Controls which additional headers to attach to all HTTP responses.
 # To add your own custom response headers, use `docker_registry_proxy_container_labels_traefik_additional_response_headers_custom`
 docker_registry_proxy_container_labels_traefik_additional_response_headers: "{{ docker_registry_proxy_container_labels_traefik_additional_response_headers_auto | combine(docker_registry_proxy_container_labels_traefik_additional_response_headers_custom) }}"  # noqa yaml[line-length]

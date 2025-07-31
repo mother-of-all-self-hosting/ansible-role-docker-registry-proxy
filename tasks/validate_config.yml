@@ -26,12 +26,6 @@
     - docker_registry_proxy_path_prefix
     - docker_registry_proxy_container_network
 
-- name: Fail if Docker Registry Proxy hosted at a subpath
-  ansible.builtin.fail:
-    msg: >-
-      Docker Registry Proxy can only be hosted at the base path (`/`), not at a subpath like `{{ docker_registry_proxy_path_prefix }}`).
-  when: "docker_registry_proxy_path_prefix != '/'"
-
 - name: Validate Docker Registry Proxy Traefik settings
   when: docker_registry_proxy_container_labels_traefik_enabled | bool
   block:
@@ -43,3 +37,10 @@
       with_items:
         - docker_registry_proxy_container_labels_traefik_hostname
         - docker_registry_proxy_container_labels_traefik_path_prefix
+
+    - name: Fail if docker_registry_proxy_container_labels_traefik_path_prefix is different than /
+      ansible.builtin.fail:
+        msg: >-
+          docker_registry_proxy_container_labels_traefik_path_prefix (`{{ docker_registry_proxy_container_labels_traefik_path_prefix }}`) must be `/`.
+          Docker Registry Proxy does not support hosting under a subpath yet.
+      when: "docker_registry_proxy_container_labels_traefik_path_prefix != '/'"

@@ -12,6 +12,7 @@
   when: "lookup('ansible.builtin.varnames', ('^' + item.old + '$'), wantlist=True) | length > 0"
   with_items:
     - { "old": "docker_registry_proxy_environment_variables_extension", "new": "docker_registry_proxy_environment_variables_additional_variables" }
+    - { "old": "docker_registry_proxy_http_header_content_permission_policy", "new": "docker_registry_proxy_http_header_permissions_policy" }
 
 - name: Fail if required Docker Registry Proxy settings not defined
   ansible.builtin.fail:

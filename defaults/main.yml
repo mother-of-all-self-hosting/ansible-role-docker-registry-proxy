@@ -107,7 +107,9 @@ docker_registry_proxy_container_labels_additional_labels: ''
 docker_registry_proxy_container_health_interval: "{{ '5s' if docker_registry_proxy_container_labels_traefik_enabled else '60s' }}"
 
 # A list of extra arguments to pass to the container
-docker_registry_proxy_container_extra_arguments: []
+docker_registry_proxy_container_extra_arguments: "{{ docker_registry_proxy_container_extra_arguments_auto + docker_registry_proxy_container_extra_arguments_custom }}"
+docker_registry_proxy_container_extra_arguments_auto: []
+docker_registry_proxy_container_extra_arguments_custom: []
 
 # Specifies the value of the `X-XSS-Protection` header
 # Stops pages from loading when they detect reflected cross-site scripting (XSS) attacks.

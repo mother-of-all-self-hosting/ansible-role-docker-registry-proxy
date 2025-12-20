@@ -88,9 +88,10 @@ docker_registry_proxy_container_labels_traefik_additional_response_headers_custo
 
 # docker_registry_proxy_container_labels_additional_labels contains a multiline string with additional labels to add to the container label file.
 # See `../templates/labels.j2` for details.
+# To add your own custom labels, use `docker_registry_proxy_container_labels_additional_labels_custom`
 #
 # Example:
-# docker_registry_proxy_container_labels_additional_labels: |
+# docker_registry_proxy_container_labels_additional_labels_custom: |
 #   my.label=1
 #   another.label="here"
 docker_registry_proxy_container_labels_additional_labels: "{{ docker_registry_proxy_container_labels_additional_labels_auto | combine(docker_registry_proxy_container_labels_additional_labels_custom) }}"

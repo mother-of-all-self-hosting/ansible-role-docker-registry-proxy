@@ -93,7 +93,9 @@ docker_registry_proxy_container_labels_traefik_additional_response_headers_custo
 # docker_registry_proxy_container_labels_additional_labels: |
 #   my.label=1
 #   another.label="here"
-docker_registry_proxy_container_labels_additional_labels: ''
+docker_registry_proxy_container_labels_additional_labels: "{{ docker_registry_proxy_container_labels_additional_labels_auto | combine(docker_registry_proxy_container_labels_additional_labels_custom) }}"
+docker_registry_proxy_container_labels_additional_labels_auto: {}
+docker_registry_proxy_container_labels_additional_labels_custom: {}
 
 # Specifies how often the container health-check will run.
 #

@@ -168,6 +168,9 @@ docker_registry_proxy_systemd_wanted_services_list_default: []
 docker_registry_proxy_systemd_wanted_services_list_auto: []
 docker_registry_proxy_systemd_wanted_services_list_custom: []
 
+# Specify the timezone
+docker_registry_proxy_environment_variables_tz: UTC
+
 # Log level
 docker_registry_proxy_loglevel: info
 # Port on which the proxy listens

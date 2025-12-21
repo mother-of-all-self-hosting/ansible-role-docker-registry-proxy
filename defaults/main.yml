@@ -109,7 +109,7 @@ docker_registry_proxy_container_labels_additional_labels_custom: {}
 # For non-Traefik setups, we use the default healthcheck interval (60s) to decrease overhead.
 docker_registry_proxy_container_health_interval: "{{ '5s' if docker_registry_proxy_container_labels_traefik_enabled else '60s' }}"
 
-# A list of extra arguments to pass to the container
+# A list of extra arguments to pass to the container (`docker create` command)
 docker_registry_proxy_container_extra_arguments: "{{ docker_registry_proxy_container_extra_arguments_auto + docker_registry_proxy_container_extra_arguments_custom }}"
 docker_registry_proxy_container_extra_arguments_auto: []
 docker_registry_proxy_container_extra_arguments_custom: []

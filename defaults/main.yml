@@ -97,6 +97,7 @@ docker_registry_proxy_container_labels_traefik_additional_response_headers_custo
 docker_registry_proxy_container_labels_additional_labels: "{{ docker_registry_proxy_container_labels_additional_labels_auto + docker_registry_proxy_container_labels_additional_labels_custom }}"
 docker_registry_proxy_container_labels_additional_labels_auto: []
 docker_registry_proxy_container_labels_additional_labels_custom: []
+
 # Specifies how often the container health-check will run.
 #
 # For Traefik based setups, it's important that the interval is short,

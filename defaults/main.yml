@@ -91,7 +91,7 @@ docker_registry_proxy_container_labels_traefik_additional_response_headers_custo
 # To add your own custom labels, use `docker_registry_proxy_container_labels_additional_labels_custom`
 #
 # Example:
-# docker_registry_proxy_container_labels_additional_labels_custom: |
+# docker_registry_proxy_container_labels_additional_labels_custom:
 #   - my.label=1
 #   - another.label="here"
 docker_registry_proxy_container_labels_additional_labels: "{{ docker_registry_proxy_container_labels_additional_labels_auto + docker_registry_proxy_container_labels_additional_labels_custom }}"

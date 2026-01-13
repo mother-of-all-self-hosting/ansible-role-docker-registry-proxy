@@ -55,7 +55,7 @@ docker_registry_proxy_container_additional_networks_custom: []
 # docker_registry_proxy_container_labels_traefik_enabled controls whether labels to assist a Traefik reverse-proxy will be attached to the container.
 # See `../templates/labels.j2` for details.
 #
-# To inject your own other container labels, see `docker_registry_proxy_container_labels_additional_labels`.
+# To inject your own other container labels, see `docker_registry_proxy_container_labels_additional_labels_custom`.
 docker_registry_proxy_container_labels_traefik_enabled: true
 docker_registry_proxy_container_labels_traefik_docker_network: "{{ docker_registry_proxy_container_network }}"
 docker_registry_proxy_container_labels_traefik_hostname: "{{ docker_registry_proxy_hostname }}"

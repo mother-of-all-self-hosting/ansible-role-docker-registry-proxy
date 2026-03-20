@@ -28,7 +28,7 @@ docker_registry_proxy_hostname: ""
 #
 # Hosting Docker Registry Proxy under a subpath does not seem to be possible due to Docker Registry Proxy's
 # technical limitations.
-docker_registry_proxy_prefix: /
+docker_registry_proxy_path_prefix: /
 
 docker_registry_proxy_container_image: "{{ docker_registry_proxy_container_image_registry_prefix }}etkecc/docker-registry-proxy:{{ docker_registry_proxy_container_image_tag }}"
 docker_registry_proxy_container_image_tag: "{{ docker_registry_proxy_version }}"

@@ -13,6 +13,10 @@
   with_items:
     - { "old": "docker_registry_proxy_environment_variables_extension", "new": "docker_registry_proxy_environment_variables_additional_variables" }
     - { "old": "docker_registry_proxy_http_header_content_permission_policy", "new": "docker_registry_proxy_http_header_permissions_policy" }
+    # `docker_registry_proxy_prefix` was introduced accidentally in defaults/main.yml by
+    # https://github.com/mother-of-all-self-hosting/ansible-role-docker-registry-proxy/commit/6cb05c232eb58eff10126c25e9545fbd1304de40
+    # without updating the rest of the role, which still expects `docker_registry_proxy_path_prefix`.
+    - { "old": "docker_registry_proxy_prefix", "new": "docker_registry_proxy_path_prefix" }
 
 - name: Fail if required Docker Registry Proxy settings not defined
   ansible.builtin.fail:

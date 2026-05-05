@@ -17,6 +17,7 @@
     # https://github.com/mother-of-all-self-hosting/ansible-role-docker-registry-proxy/commit/6cb05c232eb58eff10126c25e9545fbd1304de40
     # without updating the rest of the role, which still expects `docker_registry_proxy_path_prefix`.
     - { "old": "docker_registry_proxy_prefix", "new": "docker_registry_proxy_path_prefix" }
+    - { "old": "docker_registry_proxy_container_image_force_pull", "new": "<removed> (the new community.docker.docker_image_pull module handles this natively)" }
 
 - name: Fail if required Docker Registry Proxy settings not defined
   ansible.builtin.fail:

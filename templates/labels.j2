@@ -13,6 +13,11 @@ traefik.docker.network={{ docker_registry_proxy_container_labels_traefik_docker_
 
 {% set middlewares = [] %}
 
+{% if docker_registry_proxy_container_labels_traefik_middleware_basic_auth_enabled %}
+{% set middlewares = middlewares + [docker_registry_proxy_identifier + '-basic-auth'] %}
+traefik.http.middlewares.{{ docker_registry_proxy_identifier }}-basic-auth.basicauth.users={{ docker_registry_proxy_container_labels_traefik_middleware_basic_auth_users }}
+{% endif %}
+
 {% if docker_registry_proxy_container_labels_traefik_additional_request_headers.keys() | length > 0 %}
 {% for name, value in docker_registry_proxy_container_labels_traefik_additional_request_headers.items() %}
 traefik.http.middlewares.{{ docker_registry_proxy_identifier }}-add-request-headers.headers.customrequestheaders.{{ name }}={{ value }}

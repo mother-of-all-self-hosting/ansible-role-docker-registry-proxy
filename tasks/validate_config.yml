@@ -25,24 +25,24 @@
       You need to define a required configuration setting (`{{ item }}`).
   when: "lookup('vars', item, default='') | string | length == 0"
   with_items:
-    - docker_registry_proxy_identifier
     - docker_registry_proxy_uid
     - docker_registry_proxy_gid
     - docker_registry_proxy_hostname
     - docker_registry_proxy_path_prefix
     - docker_registry_proxy_container_network
 
-- name: Validate Docker Registry Proxy Traefik settings
+- name: Run if Traefik is enabled
   when: docker_registry_proxy_container_labels_traefik_enabled | bool
   block:
     - name: Fail if Traefik settings required for Docker Registry Proxy are not defined
       ansible.builtin.fail:
         msg: >-
-          You need to define a required configuration setting (`{{ item }}`).
-      when: "lookup('vars', item, default='') | string | length == 0"
+          You need to define a required configuration setting (`{{ item.name }}`).
+      when: "item.when | bool and lookup('vars', item.name, default='') | string | length == 0"
       with_items:
-        - docker_registry_proxy_container_labels_traefik_hostname
-        - docker_registry_proxy_container_labels_traefik_path_prefix
+        - { "name": "docker_registry_proxy_container_labels_traefik_hostname", when: true }
+        - { "name": "docker_registry_proxy_container_labels_traefik_path_prefix", when: true }
+        - { "name": "docker_registry_proxy_container_labels_traefik_middleware_basic_auth_users", when: "{{ docker_registry_proxy_container_labels_traefik_middleware_basic_auth_enabled }}" }
 
     - name: Fail if docker_registry_proxy_container_labels_traefik_path_prefix is different than /
       ansible.builtin.fail:

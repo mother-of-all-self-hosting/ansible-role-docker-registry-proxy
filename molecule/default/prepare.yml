@@ -1,0 +1,49 @@
+# SPDX-FileCopyrightText: 2026 Slavi Pantaleev
+#
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
+---
+- name: Prepare Docker Registry Proxy Molecule tests
+  hosts: all
+  become: true
+  gather_facts: true
+  tasks:
+    - name: Ensure apt cache is updated for Docker Registry Proxy Molecule tests preparation
+      ansible.builtin.apt:
+        update_cache: true
+        cache_valid_time: 600
+      when: ansible_facts["os_family"] == 'Debian'
+
+    - name: Ensure required packages are installed for Docker Registry Proxy Molecule tests preparation
+      ansible.builtin.package:
+        name:
+          - python3-requests
+        state: present
+
+    - name: Ensure Docker is installed for Docker Registry Proxy Molecule tests preparation
+      ansible.builtin.include_role:
+        name: ansible-role-docker
+      vars:
+        docker_daemon_options:
+          storage-driver: vfs
+
+    # The role connects its container to the networks named in
+    # `docker_registry_proxy_container_additional_networks_custom` but does not
+    # create them, so this is where the network the upstream registry and the
+    # standalone control container live on comes from.
+    #
+    # Created via the Docker CLI rather than community.docker.docker_network,
+    # because the ansible-lint environment used by pre-commit does not have the
+    # community.docker collection and would fail the playbook syntax check.
+    - name: Ensure the Docker Registry Proxy backend network exists for Molecule tests
+      ansible.builtin.command:
+        argv:
+          - docker
+          - network
+          - create
+          - "{{ docker_registry_proxy_molecule_backend_network }}"
+      register: docker_registry_proxy_molecule_backend_network_result
+      changed_when: docker_registry_proxy_molecule_backend_network_result.rc == 0
+      failed_when: >-
+        docker_registry_proxy_molecule_backend_network_result.rc != 0
+        and 'already exists' not in docker_registry_proxy_molecule_backend_network_result.stderr

@@ -1,0 +1,160 @@
+# SPDX-FileCopyrightText: 2026 Slavi Pantaleev
+#
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
+---
+dependency:
+  name: galaxy
+  options:
+    requirements-file: requirements.yml
+    force: true
+driver:
+  name: docker
+platforms:
+  - name: docker-registry-proxy-${MOLECULE_DISTRO:-ubuntu2604}-default
+    image: "geerlingguy/docker-${MOLECULE_DISTRO:-ubuntu2604}-ansible:latest"
+    command: ${MOLECULE_DOCKER_COMMAND:-""}
+    volumes:
+      - /sys/fs/cgroup:/sys/fs/cgroup:rw
+    cgroupns_mode: host
+    privileged: true
+    pre_build_image: true
+provisioner:
+  name: ansible
+  config_options:
+    defaults:
+      callback_result_format: yaml
+  inventory:
+    group_vars:
+      all:
+        # Helper variables
+        docker_registry_proxy_debug_service_enabled: false
+
+        # A network of the scenario's own, which the helper containers below
+        # live on and which the role's container is attached to as an
+        # additional network. Created by prepare.yml, because the role
+        # deliberately does not create the networks named in
+        # `docker_registry_proxy_container_additional_networks_custom` - it
+        # only connects to them.
+        docker_registry_proxy_molecule_backend_network: docker-registry-proxy-default-backend
+
+        # The registry that the proxy is put in front of. Everything the proxy
+        # serves comes from this container, on the scenario's own network:
+        # no part of this scenario talks to Docker Hub or to any other registry
+        # on the internet.
+        docker_registry_proxy_molecule_upstream_container_name: docker-registry-proxy-default-upstream
+        # renovate: datasource=docker depName=docker.io/registry versioning=semver
+        docker_registry_proxy_molecule_upstream_image: docker.io/registry:3.0.0
+        # How the proxy container reaches the upstream, over the backend
+        # network, by container name.
+        docker_registry_proxy_molecule_upstream_target_host: docker-registry-proxy-default-upstream:5000
+        # How this scenario reaches the upstream directly, bypassing the proxy,
+        # to seed it and to check afterwards what the proxy wrote into it.
+        docker_registry_proxy_molecule_upstream_url: "http://127.0.0.1:5000"
+
+        # The stock container image, run with no configuration at all, as a
+        # negative control: it establishes which of the assertions in
+        # verify.yml are the role's doing rather than the image's. It keeps the
+        # image's own default port (8080), which is also how verify.yml can
+        # tell that the role's container listening on 5080 is
+        # `docker_registry_proxy_port` reaching the process.
+        docker_registry_proxy_molecule_control_container_name: docker-registry-proxy-default-standalone-control
+        docker_registry_proxy_molecule_control_url: "http://127.0.0.1:5099"
+        docker_registry_proxy_molecule_control_bind_port: 5099
+        docker_registry_proxy_molecule_control_report_path: /root/probe-standalone-control.json
+
+        # What gets seeded into the upstream and then asked for through the
+        # proxy.
+        docker_registry_proxy_molecule_repository: mash/molecule-probe
+        docker_registry_proxy_molecule_tag: seeded
+        # A repository the upstream does not have, so that a 404 through the
+        # proxy shows the proxy really asks the upstream.
+        docker_registry_proxy_molecule_absent_repository: mash/molecule-absent
+
+        # Client addresses the proxy is made to believe it is serving. Taken
+        # from the documentation ranges (RFC 5737), so that they can never
+        # collide with whatever addresses Docker hands out here.
+        docker_registry_proxy_molecule_allowed_ip: 203.0.113.10
+        docker_registry_proxy_molecule_trusted_ip: 203.0.113.11
+        docker_registry_proxy_molecule_untrusted_ip: 203.0.113.77
+        docker_registry_proxy_molecule_ua_allowed_ip: 198.51.100.21
+        docker_registry_proxy_molecule_denied_ip: 198.51.100.99
+        docker_registry_proxy_molecule_allowed_ua: MoleculeProbe/1.0
+        docker_registry_proxy_molecule_denied_ua: TotallyUnknownAgent/1.0
+
+        # Where converge.yml leaves the probe reports for verify.yml.
+        docker_registry_proxy_molecule_seed_report_path: /root/seed-upstream.json
+        docker_registry_proxy_molecule_report_path_cache_enabled: /root/probe-cache-enabled.json
+        docker_registry_proxy_molecule_report_path_cache_disabled: /root/probe-cache-disabled.json
+
+        # Variables for Docker Registry Proxy
+        docker_registry_proxy_uid: 1000
+        docker_registry_proxy_gid: 1000
+        docker_registry_proxy_hostname: localhost
+        docker_registry_proxy_container_labels_traefik_enabled: false
+
+        # Deliberately different from the role's own default (8080), so that
+        # verify.yml can tell that this knob is what reached the process rather
+        # than something that happened to agree with it. The standalone control
+        # container, which gets no configuration, still answers on 8080.
+        docker_registry_proxy_port: 5080
+
+        # The role does not publish a port of its own (it is meant to be
+        # reached through a reverse proxy), so the scenario publishes one.
+        docker_registry_proxy_container_extra_arguments_custom:
+          - "-p 127.0.0.1:{{ docker_registry_proxy_port }}:{{ docker_registry_proxy_port }}"
+
+        # How this scenario reaches the proxy.
+        docker_registry_proxy_molecule_proxy_url: "http://127.0.0.1:{{ docker_registry_proxy_port }}"
+
+        # The proxy has nothing to proxy to without this.
+        docker_registry_proxy_target_scheme: http
+        docker_registry_proxy_target_host: "{{ docker_registry_proxy_molecule_upstream_target_host }}"
+
+        # Reads are allowed by client address or by user agent, writes only by
+        # client address. Every one of these is checked in verify.yml, from both
+        # sides: a client each list names gets in, and one it does not is
+        # turned away.
+        docker_registry_proxy_allowed_ips:
+          - "{{ docker_registry_proxy_molecule_allowed_ip }}"
+        docker_registry_proxy_allowed_uas:
+          - MoleculeProbe
+        docker_registry_proxy_trusted_ips:
+          - "{{ docker_registry_proxy_molecule_trusted_ip }}"
+
+        docker_registry_proxy_metrics_login: molecule-metrics
+        docker_registry_proxy_metrics_password: molecule-metrics-password
+
+        docker_registry_proxy_container_additional_networks_custom:
+          - "{{ docker_registry_proxy_molecule_backend_network }}"
+
+        # Pinned to literal values, because verify.yml runs as a separate play,
+        # where the role's defaults are out of scope, and these are derived from
+        # other variables rather than being literals themselves.
+        docker_registry_proxy_identifier: docker-registry-proxy
+        docker_registry_proxy_base_path: /docker-registry-proxy
+        docker_registry_proxy_container_network: docker-registry-proxy
+  env:
+    # Workaround for https://github.com/ansible/molecule/issues/4391
+    ANSIBLE_ROLES_PATH: ${MOLECULE_PROJECT_DIRECTORY}/..:/.ansible/roles:/usr/share/ansible/roles:/etc/ansible/roles:~/.ansible/roles
+scenario:
+  # See: https://docs.ansible.com/projects/molecule/configuration/?h=test_sequence#scenario
+  #
+  # Idempotence is left out: converge records what the host looked like before
+  # the role ran, starts helper containers, seeds a registry and installs the
+  # role twice with different settings, none of which is a no-op on a second
+  # run.
+  test_sequence:
+    - dependency
+    - cleanup
+    - destroy
+    - syntax
+    - create
+    - prepare
+    - converge
+    - side_effect
+    - verify
+    - cleanup
+    - destroy
+verifier:
+  name: ansible

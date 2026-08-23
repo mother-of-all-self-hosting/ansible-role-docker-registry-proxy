@@ -1,0 +1,353 @@
+# SPDX-FileCopyrightText: 2026 Slavi Pantaleev
+#
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
+---
+# Everything that needs the supporting roles' variables in scope lives in this
+# one play, because `public: true` exposes them to the rest of the play only.
+- name: Install and exercise Docker Registry Proxy for Molecule tests
+  hosts: all
+  become: true
+  gather_facts: true
+  tasks:
+    - name: Include supporting roles for Docker Registry Proxy Molecule tests
+      ansible.builtin.include_role:
+        name: "{{ role_name }}"
+        public: true
+      loop:
+        - com.devture.ansible.role.playbook_help
+        - com.devture.ansible.role.systemd_docker_base
+      loop_control:
+        loop_var: role_name
+
+    # Role defaults are not in scope here, but the version Renovate bumps lives
+    # in them, and the negative control below has to run the very same image
+    # the role is about to run.
+    - name: Load the Docker Registry Proxy role defaults
+      ansible.builtin.include_vars:
+        file: "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') }}/defaults/main.yml"
+        name: docker_registry_proxy_defaults
+
+    - name: Ensure the Docker Registry Proxy probe script is present
+      ansible.builtin.copy:
+        src: probe-registry-proxy.py
+        dest: /var/tmp/probe-registry-proxy.py
+        mode: "0644"
+
+    # -----------------------------------------------------------------
+    # What the host looked like before the role touched it
+    # -----------------------------------------------------------------
+
+    # Recorded rather than asserted here, so that every assertion lives in
+    # verify.yml. Without this, an assertion that the role's port answers and
+    # its base path exists could just as well be describing something that was
+    # already there.
+    - name: Stat the Docker Registry Proxy base path before the role runs
+      ansible.builtin.stat:
+        path: "{{ docker_registry_proxy_base_path }}"
+      register: docker_registry_proxy_molecule_base_path_before
+
+    - name: Determine whether anything answers on the Docker Registry Proxy port before the role runs
+      ansible.builtin.uri:
+        url: "{{ docker_registry_proxy_molecule_proxy_url }}/_health"
+      register: docker_registry_proxy_molecule_port_before
+      failed_when: false
+
+    - name: Record what the host looked like before the role ran
+      ansible.builtin.copy:
+        dest: /root/pre-role-state.json
+        mode: "0644"
+        content: |
+          {{
+            {
+              'base_path_exists': docker_registry_proxy_molecule_base_path_before.stat.exists,
+              'port_answered': (docker_registry_proxy_molecule_port_before.status | default(-1)) == 200,
+            } | to_nice_json
+          }}
+
+    # -----------------------------------------------------------------
+    # The registry that the proxy will be put in front of
+    # -----------------------------------------------------------------
+
+    # Started via the Docker CLI rather than community.docker.docker_container,
+    # because the ansible-lint environment used by pre-commit does not have the
+    # community.docker collection and would fail the playbook syntax check.
+    - name: Ensure the upstream Docker Registry container image is pulled
+      ansible.builtin.command:
+        argv:
+          - docker
+          - pull
+          - "{{ docker_registry_proxy_molecule_upstream_image }}"
+      changed_when: true
+
+    - name: Ensure the upstream Docker Registry container is running
+      ansible.builtin.command:
+        argv:
+          - docker
+          - run
+          - -d
+          - --name
+          - "{{ docker_registry_proxy_molecule_upstream_container_name }}"
+          - --network
+          - "{{ docker_registry_proxy_molecule_backend_network }}"
+          - -p
+          - "127.0.0.1:5000:5000"
+          - "{{ docker_registry_proxy_molecule_upstream_image }}"
+      changed_when: true
+
+    - name: Wait for the upstream Docker Registry to answer (up to 60s)
+      ansible.builtin.uri:
+        url: "{{ docker_registry_proxy_molecule_upstream_url }}/v2/"
+      register: docker_registry_proxy_molecule_upstream_ping
+      until: docker_registry_proxy_molecule_upstream_ping is not failed
+      retries: 12
+      delay: 5
+
+    # Seeded straight into the upstream, bypassing the proxy entirely, so that
+    # what the proxy is later asked for is something it can only have got by
+    # asking the upstream for it.
+    - name: Ensure the Docker Registry Proxy seed configuration is present
+      ansible.builtin.copy:
+        dest: /root/seed-config.json
+        mode: "0644"
+        content: |
+          {{
+            {
+              'upstream_url': docker_registry_proxy_molecule_upstream_url,
+              'repository': docker_registry_proxy_molecule_repository,
+              'tag': docker_registry_proxy_molecule_tag,
+            } | to_nice_json
+          }}
+
+    - name: Seed the upstream Docker Registry
+      ansible.builtin.command:
+        argv:
+          - python3
+          - /var/tmp/probe-registry-proxy.py
+          - seed
+          - /root/seed-config.json
+      register: docker_registry_proxy_molecule_seed
+      changed_when: true
+
+    - name: Record what was seeded into the upstream Docker Registry
+      ansible.builtin.copy:
+        dest: "{{ docker_registry_proxy_molecule_seed_report_path }}"
+        content: "{{ docker_registry_proxy_molecule_seed.stdout }}"
+        mode: "0644"
+
+    # -----------------------------------------------------------------
+    # Negative control: the stock image, with no configuration at all
+    # -----------------------------------------------------------------
+
+    # The image on its own is already an HTTP server, so a test that only
+    # checked "something answers" would pass without the role having done
+    # anything. Running the stock image here, unconfigured but on the same
+    # network as the upstream, pins down what the image gives you for free -
+    # and therefore what verify.yml may credit the role with.
+    #
+    # `--user` is passed because the image names a user (`app`) that its own
+    # passwd file does not have, so it refuses to start without one. The role
+    # always passes it; the control has to as well, or there would be nothing
+    # to compare against.
+    - name: Ensure the stock Docker Registry Proxy container image is pulled
+      ansible.builtin.command:
+        argv:
+          - docker
+          - pull
+          - "ghcr.io/etkecc/docker-registry-proxy:{{ docker_registry_proxy_defaults.docker_registry_proxy_version }}"
+      changed_when: true
+
+    - name: Ensure the standalone Docker Registry Proxy control container is running
+      ansible.builtin.command:
+        argv:
+          - docker
+          - run
+          - -d
+          - --name
+          - "{{ docker_registry_proxy_molecule_control_container_name }}"
+          - --network
+          - "{{ docker_registry_proxy_molecule_backend_network }}"
+          - --user
+          - "{{ docker_registry_proxy_uid }}:{{ docker_registry_proxy_gid }}"
+          - -p
+          - "127.0.0.1:{{ docker_registry_proxy_molecule_control_bind_port }}:8080"
+          - "ghcr.io/etkecc/docker-registry-proxy:{{ docker_registry_proxy_defaults.docker_registry_proxy_version }}"
+      changed_when: true
+
+    - name: Wait for the standalone Docker Registry Proxy control container to answer (up to 60s)
+      ansible.builtin.uri:
+        url: "{{ docker_registry_proxy_molecule_control_url }}/_health"
+      register: docker_registry_proxy_molecule_control_ping
+      until: docker_registry_proxy_molecule_control_ping is not failed
+      retries: 12
+      delay: 5
+
+    # The very same battery, with the very same client addresses and user
+    # agents, that the role's container is put through further down.
+    - name: Ensure the Docker Registry Proxy control probe configuration is present
+      ansible.builtin.copy:
+        dest: /root/probe-config-standalone-control.json
+        mode: "0644"
+        content: "{{ docker_registry_proxy_molecule_probe_configuration | to_nice_json }}"
+      vars:
+        docker_registry_proxy_molecule_probe_configuration:
+          proxy_url: "{{ docker_registry_proxy_molecule_control_url }}"
+          repository: "{{ docker_registry_proxy_molecule_repository }}"
+          tag: "{{ docker_registry_proxy_molecule_tag }}"
+          absent_repository: "{{ docker_registry_proxy_molecule_absent_repository }}"
+          seeded: "{{ docker_registry_proxy_molecule_seed.stdout | from_json }}"
+          cache_nonce: 9
+          metrics_login: "{{ docker_registry_proxy_metrics_login }}"
+          metrics_password: "{{ docker_registry_proxy_metrics_password }}"
+          allowed_ip: "{{ docker_registry_proxy_molecule_allowed_ip }}"
+          trusted_ip: "{{ docker_registry_proxy_molecule_trusted_ip }}"
+          untrusted_ip: "{{ docker_registry_proxy_molecule_untrusted_ip }}"
+          ua_allowed_ip: "{{ docker_registry_proxy_molecule_ua_allowed_ip }}"
+          denied_ip: "{{ docker_registry_proxy_molecule_denied_ip }}"
+          allowed_ua: "{{ docker_registry_proxy_molecule_allowed_ua }}"
+          denied_ua: "{{ docker_registry_proxy_molecule_denied_ua }}"
+
+    - name: Probe the standalone Docker Registry Proxy control container
+      ansible.builtin.command:
+        argv:
+          - python3
+          - /var/tmp/probe-registry-proxy.py
+          - probe
+          - /root/probe-config-standalone-control.json
+      register: docker_registry_proxy_molecule_control_probe
+      changed_when: true
+
+    - name: Record the standalone Docker Registry Proxy control probe
+      ansible.builtin.copy:
+        dest: "{{ docker_registry_proxy_molecule_control_report_path }}"
+        content: "{{ docker_registry_proxy_molecule_control_probe.stdout }}"
+        mode: "0644"
+
+    # -----------------------------------------------------------------
+    # First pass: the role's own default, which caches
+    # -----------------------------------------------------------------
+
+    - name: Include the Docker Registry Proxy role
+      ansible.builtin.include_role:
+        name: "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') | basename }}"
+
+    - name: Ensure the Docker Registry Proxy systemd service is started
+      ansible.builtin.systemd_service:
+        name: docker-registry-proxy.service
+        state: started
+        daemon_reload: true
+
+    - name: Wait for Docker Registry Proxy to answer (up to 300s)
+      ansible.builtin.uri:
+        url: "{{ docker_registry_proxy_molecule_proxy_url }}/_health"
+      register: docker_registry_proxy_molecule_ping
+      until: docker_registry_proxy_molecule_ping is not failed
+      retries: 60
+      delay: 5
+
+    - name: Ensure the Docker Registry Proxy probe configuration is present with caching enabled
+      ansible.builtin.copy:
+        dest: /root/probe-config-cache-enabled.json
+        mode: "0644"
+        content: "{{ docker_registry_proxy_molecule_probe_configuration | to_nice_json }}"
+      vars:
+        docker_registry_proxy_molecule_probe_configuration:
+          proxy_url: "{{ docker_registry_proxy_molecule_proxy_url }}"
+          repository: "{{ docker_registry_proxy_molecule_repository }}"
+          tag: "{{ docker_registry_proxy_molecule_tag }}"
+          absent_repository: "{{ docker_registry_proxy_molecule_absent_repository }}"
+          seeded: "{{ docker_registry_proxy_molecule_seed.stdout | from_json }}"
+          cache_nonce: 1
+          metrics_login: "{{ docker_registry_proxy_metrics_login }}"
+          metrics_password: "{{ docker_registry_proxy_metrics_password }}"
+          allowed_ip: "{{ docker_registry_proxy_molecule_allowed_ip }}"
+          trusted_ip: "{{ docker_registry_proxy_molecule_trusted_ip }}"
+          untrusted_ip: "{{ docker_registry_proxy_molecule_untrusted_ip }}"
+          ua_allowed_ip: "{{ docker_registry_proxy_molecule_ua_allowed_ip }}"
+          denied_ip: "{{ docker_registry_proxy_molecule_denied_ip }}"
+          allowed_ua: "{{ docker_registry_proxy_molecule_allowed_ua }}"
+          denied_ua: "{{ docker_registry_proxy_molecule_denied_ua }}"
+
+    - name: Probe Docker Registry Proxy with caching enabled
+      ansible.builtin.command:
+        argv:
+          - python3
+          - /var/tmp/probe-registry-proxy.py
+          - probe
+          - /root/probe-config-cache-enabled.json
+      register: docker_registry_proxy_molecule_probe_cache_enabled
+      changed_when: true
+
+    - name: Record the Docker Registry Proxy probe with caching enabled
+      ansible.builtin.copy:
+        dest: "{{ docker_registry_proxy_molecule_report_path_cache_enabled }}"
+        content: "{{ docker_registry_proxy_molecule_probe_cache_enabled.stdout }}"
+        mode: "0644"
+
+    # -----------------------------------------------------------------
+    # Second pass: caching turned off, to show the knob reaches the process
+    # -----------------------------------------------------------------
+
+    # Not public, so the override stays scoped to this include. Only the env
+    # file changes, which makes this a test of the role's env file rather than
+    # of anything Molecule does directly.
+    - name: Include the Docker Registry Proxy role with caching disabled
+      ansible.builtin.include_role:
+        name: "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') | basename }}"
+      vars:
+        docker_registry_proxy_cache_disabled: true
+
+    # The env file is only read when the container is created, so the running
+    # process keeps the old setting until the service is restarted.
+    - name: Ensure the Docker Registry Proxy systemd service is restarted
+      ansible.builtin.systemd_service:
+        name: docker-registry-proxy.service
+        state: restarted
+        daemon_reload: true
+
+    - name: Wait for Docker Registry Proxy to answer again (up to 300s)
+      ansible.builtin.uri:
+        url: "{{ docker_registry_proxy_molecule_proxy_url }}/_health"
+      register: docker_registry_proxy_molecule_ping_again
+      until: docker_registry_proxy_molecule_ping_again is not failed
+      retries: 60
+      delay: 5
+
+    - name: Ensure the Docker Registry Proxy probe configuration is present with caching disabled
+      ansible.builtin.copy:
+        dest: /root/probe-config-cache-disabled.json
+        mode: "0644"
+        content: "{{ docker_registry_proxy_molecule_probe_configuration | to_nice_json }}"
+      vars:
+        docker_registry_proxy_molecule_probe_configuration:
+          proxy_url: "{{ docker_registry_proxy_molecule_proxy_url }}"
+          repository: "{{ docker_registry_proxy_molecule_repository }}"
+          tag: "{{ docker_registry_proxy_molecule_tag }}"
+          absent_repository: "{{ docker_registry_proxy_molecule_absent_repository }}"
+          seeded: "{{ docker_registry_proxy_molecule_seed.stdout | from_json }}"
+          cache_nonce: 2
+          metrics_login: "{{ docker_registry_proxy_metrics_login }}"
+          metrics_password: "{{ docker_registry_proxy_metrics_password }}"
+          allowed_ip: "{{ docker_registry_proxy_molecule_allowed_ip }}"
+          trusted_ip: "{{ docker_registry_proxy_molecule_trusted_ip }}"
+          untrusted_ip: "{{ docker_registry_proxy_molecule_untrusted_ip }}"
+          ua_allowed_ip: "{{ docker_registry_proxy_molecule_ua_allowed_ip }}"
+          denied_ip: "{{ docker_registry_proxy_molecule_denied_ip }}"
+          allowed_ua: "{{ docker_registry_proxy_molecule_allowed_ua }}"
+          denied_ua: "{{ docker_registry_proxy_molecule_denied_ua }}"
+
+    - name: Probe Docker Registry Proxy with caching disabled
+      ansible.builtin.command:
+        argv:
+          - python3
+          - /var/tmp/probe-registry-proxy.py
+          - probe
+          - /root/probe-config-cache-disabled.json
+      register: docker_registry_proxy_molecule_probe_cache_disabled
+      changed_when: true
+
+    - name: Record the Docker Registry Proxy probe with caching disabled
+      ansible.builtin.copy:
+        dest: "{{ docker_registry_proxy_molecule_report_path_cache_disabled }}"
+        content: "{{ docker_registry_proxy_molecule_probe_cache_disabled.stdout }}"
+        mode: "0644"

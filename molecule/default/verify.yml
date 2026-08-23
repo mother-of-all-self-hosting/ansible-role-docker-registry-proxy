@@ -1,0 +1,459 @@
+# SPDX-FileCopyrightText: 2026 Slavi Pantaleev
+#
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
+---
+- name: Verify Docker Registry Proxy
+  hosts: all
+  become: true
+  gather_facts: false
+  tasks:
+    # Role defaults are not in scope here, but the version that Renovate bumps
+    # lives in them and is what the running container is checked against below.
+    - name: Load the Docker Registry Proxy role defaults
+      ansible.builtin.include_vars:
+        file: "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') }}/defaults/main.yml"
+        name: docker_registry_proxy_defaults
+
+    - name: Read what converge.yml recorded
+      ansible.builtin.slurp:
+        src: "{{ item }}"
+      register: docker_registry_proxy_reports
+      loop:
+        - /root/pre-role-state.json
+        - "{{ docker_registry_proxy_molecule_seed_report_path }}"
+        - "{{ docker_registry_proxy_molecule_control_report_path }}"
+        - "{{ docker_registry_proxy_molecule_report_path_cache_enabled }}"
+        - "{{ docker_registry_proxy_molecule_report_path_cache_disabled }}"
+
+    - name: Make sense of what converge.yml recorded
+      ansible.builtin.set_fact:
+        docker_registry_proxy_pre_role: "{{ docker_registry_proxy_reports.results[0].content | b64decode | from_json }}"
+        docker_registry_proxy_seeded: "{{ docker_registry_proxy_reports.results[1].content | b64decode | from_json }}"
+        docker_registry_proxy_control: "{{ docker_registry_proxy_reports.results[2].content | b64decode | from_json }}"
+        docker_registry_proxy_cached: "{{ docker_registry_proxy_reports.results[3].content | b64decode | from_json }}"
+        docker_registry_proxy_uncached: "{{ docker_registry_proxy_reports.results[4].content | b64decode | from_json }}"
+
+    # ---------------------------------------------------------------------
+    # The baseline: none of what follows was already true
+    # ---------------------------------------------------------------------
+
+    - name: Assert nothing was proxying before the role ran
+      ansible.builtin.assert:
+        that:
+          - not docker_registry_proxy_pre_role.base_path_exists
+          - not docker_registry_proxy_pre_role.port_answered
+        fail_msg: >-
+          The host already had a proxy before the role ran, so nothing below can
+          be attributed to the role: {{ docker_registry_proxy_pre_role }}
+        success_msg: "Neither the base path nor the proxy port existed before the role ran"
+
+    # ---------------------------------------------------------------------
+    # The negative control: what the stock image gives you without the role
+    # ---------------------------------------------------------------------
+
+    # The image alone is an HTTP server that answers `/_health`. Saying so
+    # explicitly is what keeps the assertions further down honest: only the
+    # ones that differ from the control are the role's doing.
+    - name: Assert the stock container image answers its health endpoint on its own
+      ansible.builtin.assert:
+        that: docker_registry_proxy_control.health.status == 200
+        fail_msg: "The stock container image did not answer /_health: {{ docker_registry_proxy_control.health }}"
+        success_msg: >-
+          The stock container image answers /_health unaided, so a health
+          endpoint that answers is not by itself evidence that the role did
+          anything
+
+    # The sharpest part of the control. Given no allow lists and no target, the
+    # image turns away every read - including one from the very address the
+    # role's container lets in - and refuses every write. A 200 further down can
+    # therefore only come from the role's env file.
+    - name: Assert the stock container image proxies nothing and admits nobody
+      ansible.builtin.assert:
+        that:
+          - docker_registry_proxy_control.api_root.status == 402
+          - docker_registry_proxy_control.api_root.error_code == 'PAYMENT_REQUIRED'
+          - docker_registry_proxy_control.auth.allowed_by_ip.status == 402
+          - docker_registry_proxy_control.auth.allowed_by_ua.status == 402
+          - docker_registry_proxy_control.manifest_get.status == 402
+          - docker_registry_proxy_control.write_through.status == 403
+          # A method that is neither a read nor a write is refused by the image
+          # itself, so the 405 asserted further down is not the role's doing.
+          - docker_registry_proxy_control.auth.unsupported_method.status == 405
+        fail_msg: >-
+          The stock container image served something without being configured
+          to, so the assertions below prove nothing: {{ docker_registry_proxy_control }}
+        success_msg: >-
+          The stock container image answers 402 to every read (even from
+          {{ docker_registry_proxy_molecule_allowed_ip }}) and 403 to every
+          write, so anything that gets through further down was let through by
+          the role's configuration
+
+    # Metrics are behind basic auth in the image itself, so a 401 is not
+    # something the role can be credited with - only the 200 that the
+    # configured credentials buy is.
+    - name: Assert the stock container image guards its metrics endpoint on its own
+      ansible.builtin.assert:
+        that:
+          - docker_registry_proxy_control.metrics.unauthenticated.status == 401
+          - docker_registry_proxy_control.metrics.authenticated.status == 401
+        fail_msg: >-
+          The stock container image did not guard /metrics as expected:
+          {{ docker_registry_proxy_control.metrics }}
+        success_msg: >-
+          The stock container image refuses /metrics both with and without the
+          role's credentials, so the 200 further down is those credentials
+          reaching the process
+
+    # ---------------------------------------------------------------------
+    # The unit is up and the process answers where the role told it to
+    # ---------------------------------------------------------------------
+
+    - name: Read the Docker Registry Proxy service state
+      ansible.builtin.systemd:
+        name: docker-registry-proxy.service
+      register: docker_registry_proxy_service
+
+    - name: Assert the Docker Registry Proxy service is active
+      ansible.builtin.assert:
+        that: docker_registry_proxy_service.status.ActiveState == 'active'
+        fail_msg: "docker-registry-proxy.service is not active ({{ docker_registry_proxy_service.status.ActiveState }})"
+        success_msg: "docker-registry-proxy.service is active"
+
+    - name: Retrieve the Docker Registry Proxy service log for debugging
+      when: docker_registry_proxy_debug_service_enabled | bool
+      ansible.builtin.command:
+        argv:
+          - journalctl
+          - --no-pager
+          - --output=cat
+          - --unit=docker-registry-proxy.service
+      changed_when: false
+
+    # The control container, which was given no configuration, listens on the
+    # image's own default of 8080. This one answers on 5080 because
+    # `docker_registry_proxy_port` says so.
+    - name: Assert Docker Registry Proxy answers on the configured port
+      ansible.builtin.assert:
+        that:
+          - docker_registry_proxy_port != 8080
+          - docker_registry_proxy_cached.health.status == 200
+          - "'\"status\":\"ok\"' in docker_registry_proxy_cached.health.body"
+        fail_msg: >-
+          Nothing answered /_health on port {{ docker_registry_proxy_port }}:
+          {{ docker_registry_proxy_cached.health }}
+        success_msg: >-
+          Docker Registry Proxy answers /_health on {{ docker_registry_proxy_port }},
+          which is docker_registry_proxy_port rather than the image's default of 8080
+
+    # ---------------------------------------------------------------------
+    # The configured settings reached the env file
+    # ---------------------------------------------------------------------
+
+    - name: Read the Docker Registry Proxy environment file
+      ansible.builtin.slurp:
+        src: "{{ docker_registry_proxy_base_path }}/env"
+      register: docker_registry_proxy_env_file
+
+    - name: Make sense of the Docker Registry Proxy environment file
+      ansible.builtin.set_fact:
+        docker_registry_proxy_env_lines: "{{ (docker_registry_proxy_env_file.content | b64decode).splitlines() }}"
+
+    - name: Assert the configured settings reached the Docker Registry Proxy env file
+      ansible.builtin.assert:
+        that:
+          - "'DRP_PORT=' ~ docker_registry_proxy_port in docker_registry_proxy_env_lines"
+          - "'DRP_TARGET_SCHEME=' ~ docker_registry_proxy_target_scheme in docker_registry_proxy_env_lines"
+          - "'DRP_TARGET_HOST=' ~ docker_registry_proxy_molecule_upstream_target_host in docker_registry_proxy_env_lines"
+          - "'DRP_ALLOWED_IPS=' ~ docker_registry_proxy_molecule_allowed_ip in docker_registry_proxy_env_lines"
+          - "'DRP_TRUSTED_IPS=' ~ docker_registry_proxy_molecule_trusted_ip in docker_registry_proxy_env_lines"
+          - "'DRP_METRICS_LOGIN=' ~ docker_registry_proxy_metrics_login in docker_registry_proxy_env_lines"
+          # The second installation pass turned caching off; had it not, the
+          # cache assertions below could not tell the two passes apart.
+          - "'DRP_CACHE_DISABLED=true' in docker_registry_proxy_env_lines"
+          - "'TZ=' ~ docker_registry_proxy_defaults.docker_registry_proxy_environment_variables_tz in docker_registry_proxy_env_lines"
+        fail_msg: "The configured settings did not reach the env file: {{ docker_registry_proxy_env_lines }}"
+        success_msg: "The configured settings reached the env file"
+
+    # ---------------------------------------------------------------------
+    # The proxy really passes through to the upstream registry
+    # ---------------------------------------------------------------------
+
+    # The image was seeded straight into the upstream, so the only way the
+    # proxy can hand it back is by having asked the upstream for it. Every
+    # digest here is recomputed from the bytes the proxy returned, so a proxy
+    # that corrupted or invented content could not pass.
+    - name: Assert Docker Registry Proxy serves the upstream registry's content unaltered
+      ansible.builtin.assert:
+        that:
+          - docker_registry_proxy_cached.api_root.status == 200
+          - docker_registry_proxy_cached.api_root.docker_distribution_api_version == 'registry/2.0'
+          - docker_registry_proxy_cached.manifest_get.status == 200
+          - docker_registry_proxy_cached.manifest_get.digest_matches_body
+          - docker_registry_proxy_cached.manifest_get.digest_matches_seeded
+          - >-
+            docker_registry_proxy_cached.manifest_get.media_type
+            == 'application/vnd.docker.distribution.manifest.v2+json'
+          - docker_registry_proxy_cached.blob_get.config.status == 200
+          - docker_registry_proxy_cached.blob_get.config.digest_matches
+          - docker_registry_proxy_cached.blob_get.layer.status == 200
+          - docker_registry_proxy_cached.blob_get.layer.digest_matches
+          - docker_registry_proxy_cached.blob_get.layer.size == docker_registry_proxy_seeded.layer_size
+        fail_msg: "The image did not come back through the proxy intact: {{ docker_registry_proxy_cached }}"
+        success_msg: >-
+          {{ docker_registry_proxy_molecule_repository }}:{{ docker_registry_proxy_molecule_tag }}
+          was seeded into the upstream and read back through the proxy with
+          every digest matching
+
+    # A proxy that answered out of its own head rather than asking the upstream
+    # could not produce this: the repository exists nowhere. Which of the two
+    # refusals comes back is the registry's business - 3.0.0 answers
+    # MANIFEST_UNKNOWN where earlier releases answer NAME_UNKNOWN - but both are
+    # error codes from the registry API, which is the point.
+    - name: Assert Docker Registry Proxy passes the upstream registry's refusals through too
+      ansible.builtin.assert:
+        that:
+          - docker_registry_proxy_cached.absent_repository.status == 404
+          - docker_registry_proxy_cached.absent_repository.docker_distribution_api_version == 'registry/2.0'
+          - docker_registry_proxy_cached.absent_repository.error_code in ['NAME_UNKNOWN', 'MANIFEST_UNKNOWN']
+        fail_msg: >-
+          A repository the upstream does not have did not 404 through the proxy:
+          {{ docker_registry_proxy_cached.absent_repository }}
+        success_msg: >-
+          {{ docker_registry_proxy_molecule_absent_repository }} answers 404
+          {{ docker_registry_proxy_cached.absent_repository.error_code }} through
+          the proxy, which is the upstream's answer rather than the proxy's own
+
+    # ---------------------------------------------------------------------
+    # A write, made through the proxy, landed in the upstream registry
+    # ---------------------------------------------------------------------
+
+    - name: Query the upstream Docker Registry for what was written through the proxy
+      ansible.builtin.uri:
+        url: >-
+          {{ docker_registry_proxy_molecule_upstream_url }}/v2/{{
+          docker_registry_proxy_molecule_repository }}/blobs/{{
+          docker_registry_proxy_cached.write_through.digest }}
+        return_content: true
+      register: docker_registry_proxy_written_blob
+
+    - name: Assert what was written through the proxy reached the upstream registry
+      ansible.builtin.assert:
+        that:
+          - docker_registry_proxy_cached.write_through.status == 202
+          - docker_registry_proxy_cached.write_through.blob_put.status == 201
+          - docker_registry_proxy_written_blob.status == 200
+          - docker_registry_proxy_written_blob.content | length == docker_registry_proxy_cached.write_through.size
+        fail_msg: >-
+          The blob written through the proxy is not in the upstream registry:
+          {{ docker_registry_proxy_cached.write_through }}
+        success_msg: >-
+          A blob written through the proxy from
+          {{ docker_registry_proxy_molecule_trusted_ip }} is readable directly
+          from the upstream registry at
+          {{ docker_registry_proxy_cached.write_through.digest }}
+
+    # The upstream hands back an upload location naming itself. The proxy
+    # rewrites it, so that a client following it comes back to the proxy rather
+    # than trying to reach a backend it cannot see.
+    - name: Assert Docker Registry Proxy rewrites the upload location to itself
+      ansible.builtin.assert:
+        that:
+          - >-
+            docker_registry_proxy_cached.write_through.location | urlsplit('netloc')
+            == docker_registry_proxy_molecule_proxy_url | urlsplit('netloc')
+          - >-
+            docker_registry_proxy_cached.write_through.location | urlsplit('netloc')
+            != docker_registry_proxy_molecule_upstream_target_host
+        fail_msg: >-
+          The upload location was not rewritten to the proxy:
+          {{ docker_registry_proxy_cached.write_through.location }}
+        success_msg: >-
+          The upload location points at
+          {{ docker_registry_proxy_cached.write_through.location | urlsplit('netloc') }}
+          rather than at the hidden upstream
+          {{ docker_registry_proxy_molecule_upstream_target_host }}
+
+    # ---------------------------------------------------------------------
+    # Who gets in follows the role's allow and trust lists
+    # ---------------------------------------------------------------------
+
+    - name: Assert Docker Registry Proxy admits and refuses clients as configured
+      ansible.builtin.assert:
+        that:
+          # In docker_registry_proxy_allowed_ips, so its user agent - the same
+          # one the refusal below carries - is never even looked at.
+          - docker_registry_proxy_cached.auth.allowed_by_ip.status == 200
+          # Not in docker_registry_proxy_allowed_ips, but its user agent is in
+          # docker_registry_proxy_allowed_uas.
+          - docker_registry_proxy_cached.auth.allowed_by_ua.status == 200
+          # In neither list, so nothing lets it through.
+          - docker_registry_proxy_cached.auth.denied.status == 402
+          - docker_registry_proxy_cached.auth.denied.error_code == 'PAYMENT_REQUIRED'
+          # Writes go by docker_registry_proxy_trusted_ips instead, and being
+          # allowed to read does not make a client trusted to write.
+          - docker_registry_proxy_cached.auth.untrusted_write.status == 403
+          - docker_registry_proxy_cached.auth.untrusted_write.error_code == 'FORBIDDEN'
+          # Neither a read nor a write method.
+          - docker_registry_proxy_cached.auth.unsupported_method.status == 405
+          - docker_registry_proxy_cached.auth.unsupported_method.error_code == 'METHOD_NOT_ALLOWED'
+        fail_msg: >-
+          Clients were not admitted and refused as configured:
+          {{ docker_registry_proxy_cached.auth }}
+        success_msg: >-
+          {{ docker_registry_proxy_molecule_allowed_ip }} gets in by address,
+          {{ docker_registry_proxy_molecule_ua_allowed_ip }} by user agent,
+          {{ docker_registry_proxy_molecule_denied_ip }} not at all (402), and
+          {{ docker_registry_proxy_molecule_untrusted_ip }} may not write (403)
+
+    # ---------------------------------------------------------------------
+    # `docker_registry_proxy_cache_disabled` reaches the running process
+    # ---------------------------------------------------------------------
+
+    # With caching on, the second identical request is answered out of the
+    # proxy's own store. With it off, the proxy does not so much as claim a
+    # cache: the header it stamps every cacheable response with is gone.
+    - name: Assert caching follows docker_registry_proxy_cache_disabled
+      ansible.builtin.assert:
+        that:
+          - docker_registry_proxy_cached.cache.first.status == 200
+          - docker_registry_proxy_cached.cache.first.x_cache == 'MISS'
+          - docker_registry_proxy_cached.cache.second.status == 200
+          - docker_registry_proxy_cached.cache.second.x_cache == 'HIT'
+          - docker_registry_proxy_uncached.cache.first.status == 200
+          - docker_registry_proxy_uncached.cache.first.x_cache is none
+          - docker_registry_proxy_uncached.cache.second.status == 200
+          - docker_registry_proxy_uncached.cache.second.x_cache is none
+        fail_msg: >-
+          Caching did not follow docker_registry_proxy_cache_disabled
+          (enabled: {{ docker_registry_proxy_cached.cache }},
+          disabled: {{ docker_registry_proxy_uncached.cache }})
+        success_msg: >-
+          {{ docker_registry_proxy_cached.cache.path }} answers MISS then HIT
+          while docker_registry_proxy_cache_disabled is false, and carries no
+          X-Cache header at all once it is true
+
+    # The proxy keeps serving the upstream either way - turning the cache off
+    # takes the cache away, not the proxying.
+    - name: Assert Docker Registry Proxy still serves the upstream with caching disabled
+      ansible.builtin.assert:
+        that:
+          - docker_registry_proxy_uncached.manifest_get.status == 200
+          - docker_registry_proxy_uncached.manifest_get.digest_matches_seeded
+          - docker_registry_proxy_uncached.blob_get.layer.digest_matches
+        fail_msg: >-
+          The proxy stopped serving the upstream once caching was disabled:
+          {{ docker_registry_proxy_uncached.manifest_get }}
+        success_msg: "The proxy serves the upstream with caching disabled just as it does with it enabled"
+
+    # ---------------------------------------------------------------------
+    # The metrics endpoint, and what it says about the requests just made
+    # ---------------------------------------------------------------------
+
+    # The counters name the very addresses the probe used, so this is the
+    # running process reporting on the requests asserted on above - not a
+    # static page that merely happens to parse.
+    - name: Assert the Docker Registry Proxy metrics endpoint reports on the probe
+      ansible.builtin.assert:
+        that:
+          - docker_registry_proxy_cached.metrics.unauthenticated.status == 401
+          - docker_registry_proxy_cached.metrics.authenticated.status == 200
+          - docker_registry_proxy_cached.metrics.authenticated.counts_denied_client
+          - docker_registry_proxy_cached.metrics.authenticated.counts_allowed_client
+        fail_msg: "The metrics endpoint did not behave as configured: {{ docker_registry_proxy_cached.metrics }}"
+        success_msg: >-
+          /metrics refuses an unauthenticated request and, with
+          docker_registry_proxy_metrics_login and
+          docker_registry_proxy_metrics_password, reports the refusal of
+          {{ docker_registry_proxy_molecule_denied_ip }} and the admission of
+          {{ docker_registry_proxy_molecule_allowed_ip }}
+
+    # ---------------------------------------------------------------------
+    # The version that is running is the one the role asks for
+    # ---------------------------------------------------------------------
+
+    # Unlike the registry it fronts, this image carries OCI labels, and its
+    # `org.opencontainers.image.version` is the real release. Asking the binary
+    # instead would not work: it has no `--version` (an unrecognized argument
+    # just starts the server) and the image has no shell to run it with.
+    - name: Inspect the Docker Registry Proxy container
+      ansible.builtin.command:
+        argv:
+          - docker
+          - inspect
+          - "{{ docker_registry_proxy_identifier }}"
+      register: docker_registry_proxy_container_inspect
+      changed_when: false
+
+    - name: Make sense of the Docker Registry Proxy container inspection
+      ansible.builtin.set_fact:
+        docker_registry_proxy_container: "{{ (docker_registry_proxy_container_inspect.stdout | from_json)[0] }}"
+
+    - name: Assert the running Docker Registry Proxy is the version the role asks for
+      ansible.builtin.assert:
+        that: >-
+          docker_registry_proxy_container.Config.Labels['org.opencontainers.image.version']
+          == docker_registry_proxy_defaults.docker_registry_proxy_version
+        fail_msg: >-
+          The running proxy is not {{ docker_registry_proxy_defaults.docker_registry_proxy_version }}:
+          {{ docker_registry_proxy_container.Config.Labels }}
+        success_msg: >-
+          The running proxy reports
+          {{ docker_registry_proxy_container.Config.Labels['org.opencontainers.image.version'] }},
+          which is docker_registry_proxy_version
+
+    # ---------------------------------------------------------------------
+    # The container is created the way the role's variables describe
+    # ---------------------------------------------------------------------
+
+    - name: Assert the Docker Registry Proxy container is created as configured
+      ansible.builtin.assert:
+        that:
+          - "'ALL' in docker_registry_proxy_container.HostConfig.CapDrop"
+          - >-
+            docker_registry_proxy_container.Config.User
+            == docker_registry_proxy_uid ~ ':' ~ docker_registry_proxy_gid
+          - docker_registry_proxy_container.HostConfig.LogConfig.Type == 'none'
+          - docker_registry_proxy_container_network in docker_registry_proxy_container.NetworkSettings.Networks
+          # docker_registry_proxy_container_additional_networks_custom is what
+          # puts the proxy on the same network as the registry it fronts, so
+          # the pass-through asserted above depends on this having worked.
+          - >-
+            docker_registry_proxy_molecule_backend_network
+            in docker_registry_proxy_container.NetworkSettings.Networks
+        fail_msg: "The container is not created as configured: {{ docker_registry_proxy_container.HostConfig }}"
+        success_msg: >-
+          The container drops all capabilities, runs as
+          {{ docker_registry_proxy_container.Config.User }}, and is attached to
+          both {{ docker_registry_proxy_container_network }} and
+          {{ docker_registry_proxy_molecule_backend_network }}
+
+    - name: Show the Docker Registry Proxy verification summary
+      ansible.builtin.debug:
+        msg:
+          - "Service: {{ docker_registry_proxy_service.status.ActiveState }}"
+          - >-
+            Running version:
+            {{ docker_registry_proxy_container.Config.Labels['org.opencontainers.image.version'] }}
+            on port {{ docker_registry_proxy_port }}
+          - >-
+            Pass-through: {{ docker_registry_proxy_cached.api_root.status }} at /v2/
+            ({{ docker_registry_proxy_cached.api_root.docker_distribution_api_version }}),
+            manifest {{ docker_registry_proxy_cached.manifest_get.digest_header }}
+          - >-
+            Absent repository: {{ docker_registry_proxy_cached.absent_repository.status }}
+            {{ docker_registry_proxy_cached.absent_repository.error_code }}
+          - >-
+            Write-through: {{ docker_registry_proxy_cached.write_through.blob_put.status }},
+            readable from the upstream at {{ docker_registry_proxy_cached.write_through.digest }}
+          - >-
+            Admission: by address {{ docker_registry_proxy_cached.auth.allowed_by_ip.status }},
+            by user agent {{ docker_registry_proxy_cached.auth.allowed_by_ua.status }},
+            refused {{ docker_registry_proxy_cached.auth.denied.status }},
+            untrusted write {{ docker_registry_proxy_cached.auth.untrusted_write.status }}
+            (stock image: {{ docker_registry_proxy_control.api_root.status }} for everything)
+          - >-
+            Cache: {{ docker_registry_proxy_cached.cache.first.x_cache }} then
+            {{ docker_registry_proxy_cached.cache.second.x_cache }} when enabled,
+            {{ docker_registry_proxy_uncached.cache.second.x_cache | default('no X-Cache header', true) }} when disabled
+          - "Metrics: {{ docker_registry_proxy_cached.metrics.authenticated.status }} with the role's credentials"

@@ -14,7 +14,7 @@ docker_registry_proxy_enabled: true
 docker_registry_proxy_identifier: docker-registry-proxy
 docker_registry_proxy_base_path: "/{{ docker_registry_proxy_identifier }}"
 
-# renovate: datasource=docker depName=ghcr.io/etkecc/docker-registry-proxy
+# renovate: datasource=docker depName=ghcr.io/etkecc/docker-registry-proxy versioning=semver
 docker_registry_proxy_version: v1.2.7
 
 docker_registry_proxy_uid: ""

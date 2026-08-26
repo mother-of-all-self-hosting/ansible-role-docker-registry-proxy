@@ -230,7 +230,7 @@
     # A write, made through the proxy, landed in the upstream registry
     # ---------------------------------------------------------------------
 
-    - name: Query the upstream Docker Registry for what was written through the proxy
+    - name: Query the upstream Distribution Registry for what was written through the proxy
       ansible.builtin.uri:
         url: >-
           {{ docker_registry_proxy_molecule_upstream_url }}/v2/{{

@@ -393,16 +393,9 @@
 
     - name: Assert the running Docker Registry Proxy is the version this role installs
       ansible.builtin.assert:
-        that: >-
-          docker_registry_proxy_container.Config.Labels['org.opencontainers.image.version']
-          == docker_registry_proxy_defaults.docker_registry_proxy_version
-        fail_msg: >-
-          The running proxy is not {{ docker_registry_proxy_defaults.docker_registry_proxy_version }}:
-          {{ docker_registry_proxy_container.Config.Labels }}
-        success_msg: >-
-          The running proxy reports
-          {{ docker_registry_proxy_container.Config.Labels['org.opencontainers.image.version'] }},
-          which is docker_registry_proxy_version
+        that: "docker_registry_proxy_container.Config.Labels['org.opencontainers.image.version'] == docker_registry_proxy_defaults.docker_registry_proxy_version"
+        fail_msg: "Docker Registry Proxy reports {{ docker_registry_proxy_container.Config.Labels['org.opencontainers.image.version'] | default('none') }}, expected {{ docker_registry_proxy_defaults.docker_registry_proxy_version }}"
+        success_msg: "Docker Registry Proxy reports {{ docker_registry_proxy_container.Config.Labels['org.opencontainers.image.version'] }}"
 
     # ---------------------------------------------------------------------
     # The container is created the way the role's variables describe

@@ -433,29 +433,29 @@
     - name: Show the Docker Registry Proxy verification summary
       ansible.builtin.debug:
         msg:
-          - "Service: {{ docker_registry_proxy_service.status.ActiveState }}"
+          - "Docker Registry Proxy systemd: {{ docker_registry_proxy_service.status.ActiveState }}"
           - >-
-            Running version:
+            Docker Registry Proxy version:
             {{ docker_registry_proxy_container.Config.Labels['org.opencontainers.image.version'] }}
             on port {{ docker_registry_proxy_port }}
           - >-
-            Pass-through: {{ docker_registry_proxy_cached.api_root.status }} at /v2/
+            Docker Registry Proxy pass-through: {{ docker_registry_proxy_cached.api_root.status }} at /v2/
             ({{ docker_registry_proxy_cached.api_root.docker_distribution_api_version }}),
             manifest {{ docker_registry_proxy_cached.manifest_get.digest_header }}
           - >-
-            Absent repository: {{ docker_registry_proxy_cached.absent_repository.status }}
+            Docker Registry Proxy absent repository: {{ docker_registry_proxy_cached.absent_repository.status }}
             {{ docker_registry_proxy_cached.absent_repository.error_code }}
           - >-
-            Write-through: {{ docker_registry_proxy_cached.write_through.blob_put.status }},
+            Docker Registry Proxy write-through: {{ docker_registry_proxy_cached.write_through.blob_put.status }},
             readable from the upstream at {{ docker_registry_proxy_cached.write_through.digest }}
           - >-
-            Admission: by address {{ docker_registry_proxy_cached.auth.allowed_by_ip.status }},
+            Docker Registry Proxy admission: by address {{ docker_registry_proxy_cached.auth.allowed_by_ip.status }},
             by user agent {{ docker_registry_proxy_cached.auth.allowed_by_ua.status }},
             refused {{ docker_registry_proxy_cached.auth.denied.status }},
             untrusted write {{ docker_registry_proxy_cached.auth.untrusted_write.status }}
             (stock image: {{ docker_registry_proxy_control.api_root.status }} for everything)
           - >-
-            Cache: {{ docker_registry_proxy_cached.cache.first.x_cache }} then
+            Docker Registry Proxy cache: {{ docker_registry_proxy_cached.cache.first.x_cache }} then
             {{ docker_registry_proxy_cached.cache.second.x_cache }} when enabled,
             {{ docker_registry_proxy_uncached.cache.second.x_cache | default('no X-Cache header', true) }} when disabled
-          - "Metrics: {{ docker_registry_proxy_cached.metrics.authenticated.status }} with the role's credentials"
+          - "Docker Registry Proxy metrics: {{ docker_registry_proxy_cached.metrics.authenticated.status }} with the role's credentials"

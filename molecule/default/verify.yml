@@ -134,19 +134,19 @@
 
     # The control container, which was given no configuration, listens on the
     # image's own default of 8080. This one answers on 5080 because
-    # `docker_registry_proxy_port` says so.
+    # `docker_registry_proxy_container_http_port` says so.
     - name: Assert Docker Registry Proxy answers on the configured port
       ansible.builtin.assert:
         that:
-          - docker_registry_proxy_port != 8080
+          - docker_registry_proxy_container_http_port != 8080
           - docker_registry_proxy_cached.health.status == 200
           - "'\"status\":\"ok\"' in docker_registry_proxy_cached.health.body"
         fail_msg: >-
-          Nothing answered /_health on port {{ docker_registry_proxy_port }}:
+          Nothing answered /_health on port {{ docker_registry_proxy_container_http_port }}:
           {{ docker_registry_proxy_cached.health }}
         success_msg: >-
-          Docker Registry Proxy answers /_health on {{ docker_registry_proxy_port }},
-          which is docker_registry_proxy_port rather than the image's default of 8080
+          Docker Registry Proxy answers /_health on {{ docker_registry_proxy_container_http_port }},
+          which is docker_registry_proxy_container_http_port rather than the image's default of 8080
 
     # ---------------------------------------------------------------------
     # The configured settings reached the env file
@@ -164,7 +164,7 @@
     - name: Assert the configured settings reached the Docker Registry Proxy env file
       ansible.builtin.assert:
         that:
-          - "'DRP_PORT=' ~ docker_registry_proxy_port in docker_registry_proxy_env_lines"
+          - "'DRP_PORT=' ~ docker_registry_proxy_container_http_port in docker_registry_proxy_env_lines"
           - "'DRP_TARGET_SCHEME=' ~ docker_registry_proxy_target_scheme in docker_registry_proxy_env_lines"
           - "'DRP_TARGET_HOST=' ~ docker_registry_proxy_molecule_upstream_target_host in docker_registry_proxy_env_lines"
           - "'DRP_ALLOWED_IPS=' ~ docker_registry_proxy_molecule_allowed_ip in docker_registry_proxy_env_lines"
@@ -430,7 +430,7 @@
           - >-
             Docker Registry Proxy version:
             {{ docker_registry_proxy_container.Config.Labels['org.opencontainers.image.version'] }}
-            on port {{ docker_registry_proxy_port }}
+            on port {{ docker_registry_proxy_container_http_port }}
           - >-
             Docker Registry Proxy pass-through: {{ docker_registry_proxy_cached.api_root.status }} at /v2/
             ({{ docker_registry_proxy_cached.api_root.docker_distribution_api_version }}),

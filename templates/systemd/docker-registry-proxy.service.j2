@@ -27,6 +27,9 @@ ExecStartPre={{ devture_systemd_docker_base_host_command_docker }} create \
       --user={{ docker_registry_proxy_uid }}:{{ docker_registry_proxy_gid }} \
       --cap-drop=ALL \
       --network={{ docker_registry_proxy_container_network }} \
+      {% if docker_registry_proxy_container_http_host_bind_port %}
+      -p {{ docker_registry_proxy_container_http_host_bind_port }}:{{ docker_registry_proxy_container_http_port }} \
+      {% endif %}
       --label-file={{ docker_registry_proxy_base_path }}/labels \
       --env-file={{ docker_registry_proxy_base_path }}/env \
       {% for arg in docker_registry_proxy_container_extra_arguments %}

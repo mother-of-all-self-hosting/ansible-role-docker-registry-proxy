@@ -59,7 +59,7 @@ provisioner:
         # verify.yml are the role's doing rather than the image's. It keeps the
         # image's own default port (8080), which is also how verify.yml can
         # tell that the role's container listening on 5080 is
-        # `docker_registry_proxy_port` reaching the process.
+        # `docker_registry_proxy_container_http_port` reaching the process.
         docker_registry_proxy_molecule_control_container_name: docker-registry-proxy-default-standalone-control
         docker_registry_proxy_molecule_control_url: "http://127.0.0.1:5099"
         docker_registry_proxy_molecule_control_bind_port: 5099
@@ -99,15 +99,15 @@ provisioner:
         # verify.yml can tell that this knob is what reached the process rather
         # than something that happened to agree with it. The standalone control
         # container, which gets no configuration, still answers on 8080.
-        docker_registry_proxy_port: 5080
+        docker_registry_proxy_container_http_port: 5080
 
         # The role does not publish a port of its own (it is meant to be
         # reached through a reverse proxy), so the scenario publishes one.
         docker_registry_proxy_container_extra_arguments_custom:
-          - "-p 127.0.0.1:{{ docker_registry_proxy_port }}:{{ docker_registry_proxy_port }}"
+          - "-p 127.0.0.1:{{ docker_registry_proxy_container_http_port }}:{{ docker_registry_proxy_container_http_port }}"
 
         # How this scenario reaches the proxy.
-        docker_registry_proxy_molecule_proxy_url: "http://127.0.0.1:{{ docker_registry_proxy_port }}"
+        docker_registry_proxy_molecule_proxy_url: "http://127.0.0.1:{{ docker_registry_proxy_container_http_port }}"
 
         # The proxy has nothing to proxy to without this.
         docker_registry_proxy_target_scheme: http

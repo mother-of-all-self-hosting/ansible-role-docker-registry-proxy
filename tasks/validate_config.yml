@@ -11,6 +11,7 @@
       Please change your configuration to rename the variable (`{{ item.old }}` -> `{{ item.new }}`).
   when: "lookup('ansible.builtin.varnames', ('^' + item.old + '$'), wantlist=True) | length > 0"
   with_items:
+    - { "old": "docker_registry_proxy_port", "new": "docker_registry_proxy_container_http_port" }
     - { "old": "docker_registry_proxy_environment_variables_extension", "new": "docker_registry_proxy_environment_variables_additional_variables" }
     - { "old": "docker_registry_proxy_http_header_content_permission_policy", "new": "docker_registry_proxy_http_header_permissions_policy" }
     # `docker_registry_proxy_prefix` was introduced accidentally in defaults/main.yml by

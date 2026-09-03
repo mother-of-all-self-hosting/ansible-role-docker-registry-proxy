@@ -391,7 +391,7 @@
       ansible.builtin.set_fact:
         docker_registry_proxy_container: "{{ (docker_registry_proxy_container_inspect.stdout | from_json)[0] }}"
 
-    - name: Assert the running Docker Registry Proxy is the version the role asks for
+    - name: Assert the running Docker Registry Proxy is the version this role installs
       ansible.builtin.assert:
         that: >-
           docker_registry_proxy_container.Config.Labels['org.opencontainers.image.version']

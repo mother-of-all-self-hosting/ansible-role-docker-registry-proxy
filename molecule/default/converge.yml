@@ -20,10 +20,10 @@
       loop_control:
         loop_var: role_name
 
-    # Role defaults are not in scope here, but the version Renovate bumps lives
-    # in them, and the negative control below has to run the very same image
-    # the role is about to run.
-    - name: Load the Docker Registry Proxy role defaults
+    # The role is not included in this playbook, so its defaults are not in
+    # scope. Reading defaults/main.yml directly ties the version assertion
+    # below.
+    - name: Load the role defaults
       ansible.builtin.include_vars:
         file: "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') }}/defaults/main.yml"
         name: docker_registry_proxy_defaults

@@ -112,18 +112,27 @@
     # The unit is up and the process answers where the role told it to
     # ---------------------------------------------------------------------
 
-    - name: Read the Docker Registry Proxy service state
-      ansible.builtin.systemd:
+    - name: Wait for the Docker Registry Proxy systemd service to become active (up to 180s)
+      ansible.builtin.systemd_service:
         name: docker-registry-proxy.service
       register: docker_registry_proxy_service
+      until: docker_registry_proxy_service.status.ActiveState == 'active'
+      retries: 36
+      delay: 5
+      # So that giving up is reported by the assertion below rather than as a
+      # wall of systemd unit properties.
+      failed_when: false
 
-    - name: Assert the Docker Registry Proxy service is active
+    # `Restart=always` in the systemd unit means that even a container which crashes
+    # and gets restarted reads as active here, so this is a precondition rather than
+    # a result.
+    - name: Assert the Docker Registry Proxy systemd service is active
       ansible.builtin.assert:
         that: docker_registry_proxy_service.status.ActiveState == 'active'
         fail_msg: "docker-registry-proxy.service is not active ({{ docker_registry_proxy_service.status.ActiveState }})"
         success_msg: "docker-registry-proxy.service is active"
 
-    - name: Retrieve the Docker Registry Proxy service log for debugging
+    - name: Retrieve the Docker Registry Proxy systemd service log for debugging
       when: docker_registry_proxy_debug_service_enabled | bool
       ansible.builtin.command:
         argv:

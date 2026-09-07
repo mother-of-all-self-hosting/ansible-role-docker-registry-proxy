@@ -150,6 +150,33 @@
           which is docker_registry_proxy_container_http_port rather than the image's default of 8080
 
     # ---------------------------------------------------------------------
+    # The version that is running is the one the role asks for
+    # ---------------------------------------------------------------------
+
+    # Unlike the registry it fronts, this image carries OCI labels, and its
+    # `org.opencontainers.image.version` is the real release. Asking the binary
+    # instead would not work: it has no `--version` (an unrecognized argument
+    # just starts the server) and the image has no shell to run it with.
+    - name: Inspect the Docker Registry Proxy container
+      ansible.builtin.command:
+        argv:
+          - docker
+          - inspect
+          - "{{ docker_registry_proxy_identifier }}"
+      register: docker_registry_proxy_container_inspect
+      changed_when: false
+
+    - name: Make sense of the Docker Registry Proxy container inspection
+      ansible.builtin.set_fact:
+        docker_registry_proxy_container: "{{ (docker_registry_proxy_container_inspect.stdout | from_json)[0] }}"
+
+    - name: Assert the running Docker Registry Proxy is the version this role installs
+      ansible.builtin.assert:
+        that: "docker_registry_proxy_container.Config.Labels['org.opencontainers.image.version'] == docker_registry_proxy_defaults.docker_registry_proxy_version"
+        fail_msg: "Docker Registry Proxy reports {{ docker_registry_proxy_container.Config.Labels['org.opencontainers.image.version'] | default('none') }}, expected {{ docker_registry_proxy_defaults.docker_registry_proxy_version }}"
+        success_msg: "Docker Registry Proxy reports {{ docker_registry_proxy_container.Config.Labels['org.opencontainers.image.version'] }}"
+
+    # ---------------------------------------------------------------------
     # The configured settings reached the env file
     # ---------------------------------------------------------------------
 
@@ -370,33 +397,6 @@
           docker_registry_proxy_metrics_password, reports the refusal of
           {{ docker_registry_proxy_molecule_denied_ip }} and the admission of
           {{ docker_registry_proxy_molecule_allowed_ip }}
-
-    # ---------------------------------------------------------------------
-    # The version that is running is the one the role asks for
-    # ---------------------------------------------------------------------
-
-    # Unlike the registry it fronts, this image carries OCI labels, and its
-    # `org.opencontainers.image.version` is the real release. Asking the binary
-    # instead would not work: it has no `--version` (an unrecognized argument
-    # just starts the server) and the image has no shell to run it with.
-    - name: Inspect the Docker Registry Proxy container
-      ansible.builtin.command:
-        argv:
-          - docker
-          - inspect
-          - "{{ docker_registry_proxy_identifier }}"
-      register: docker_registry_proxy_container_inspect
-      changed_when: false
-
-    - name: Make sense of the Docker Registry Proxy container inspection
-      ansible.builtin.set_fact:
-        docker_registry_proxy_container: "{{ (docker_registry_proxy_container_inspect.stdout | from_json)[0] }}"
-
-    - name: Assert the running Docker Registry Proxy is the version this role installs
-      ansible.builtin.assert:
-        that: "docker_registry_proxy_container.Config.Labels['org.opencontainers.image.version'] == docker_registry_proxy_defaults.docker_registry_proxy_version"
-        fail_msg: "Docker Registry Proxy reports {{ docker_registry_proxy_container.Config.Labels['org.opencontainers.image.version'] | default('none') }}, expected {{ docker_registry_proxy_defaults.docker_registry_proxy_version }}"
-        success_msg: "Docker Registry Proxy reports {{ docker_registry_proxy_container.Config.Labels['org.opencontainers.image.version'] }}"
 
     # ---------------------------------------------------------------------
     # The container is created the way the role's variables describe

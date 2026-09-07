@@ -166,7 +166,7 @@
       register: docker_registry_proxy_container_inspect
       changed_when: false
 
-    - name: Make sense of the Docker Registry Proxy container inspection
+    - name: Parse the Docker Registry Proxy container inspection
       ansible.builtin.set_fact:
         docker_registry_proxy_container: "{{ (docker_registry_proxy_container_inspect.stdout | from_json)[0] }}"
 
@@ -185,7 +185,7 @@
         src: "{{ docker_registry_proxy_base_path }}/env"
       register: docker_registry_proxy_env_file
 
-    - name: Make sense of the Docker Registry Proxy environment file
+    - name: Parse the Docker Registry Proxy environment file
       ansible.builtin.set_fact:
         docker_registry_proxy_env_lines: "{{ (docker_registry_proxy_env_file.content | b64decode).splitlines() }}"
 

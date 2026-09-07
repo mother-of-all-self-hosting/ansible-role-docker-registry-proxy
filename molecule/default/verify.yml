@@ -163,12 +163,12 @@
           - docker
           - inspect
           - "{{ docker_registry_proxy_identifier }}"
-      register: docker_registry_proxy_container_inspect
+      register: docker_registry_proxy_container_raw
       changed_when: false
 
     - name: Parse the Docker Registry Proxy container inspection
       ansible.builtin.set_fact:
-        docker_registry_proxy_container: "{{ (docker_registry_proxy_container_inspect.stdout | from_json)[0] }}"
+        docker_registry_proxy_container: "{{ (docker_registry_proxy_container_raw.stdout | from_json)[0] }}"
 
     - name: Assert the running Docker Registry Proxy is the version this role installs
       ansible.builtin.assert:

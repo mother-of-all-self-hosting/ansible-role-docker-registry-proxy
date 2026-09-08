@@ -39,11 +39,7 @@
     # community.docker collection and would fail the playbook syntax check.
     - name: Ensure the Docker Registry Proxy backend network exists for Molecule tests
       ansible.builtin.command:
-        argv:
-          - docker
-          - network
-          - create
-          - "{{ docker_registry_proxy_molecule_backend_network }}"
+        cmd: docker network create {{ docker_registry_proxy_molecule_backend_network }}
       register: docker_registry_proxy_molecule_backend_network_result
       changed_when: docker_registry_proxy_molecule_backend_network_result.rc == 0
       failed_when: >-

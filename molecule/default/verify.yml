@@ -135,11 +135,7 @@
     - name: Retrieve the Docker Registry Proxy systemd service log for debugging
       when: docker_registry_proxy_debug_service_enabled | bool
       ansible.builtin.command:
-        argv:
-          - journalctl
-          - --no-pager
-          - --output=cat
-          - --unit=docker-registry-proxy.service
+        cmd: journalctl --no-pager --output=cat --unit=docker-registry-proxy.service
       changed_when: false
 
     # The control container, which was given no configuration, listens on the
@@ -168,10 +164,7 @@
     # just starts the server) and the image has no shell to run it with.
     - name: Inspect the Docker Registry Proxy container
       ansible.builtin.command:
-        argv:
-          - docker
-          - inspect
-          - "{{ docker_registry_proxy_identifier }}"
+        cmd: "docker container inspect {{ docker_registry_proxy_identifier }}"
       register: docker_registry_proxy_container_raw
       changed_when: false
 

@@ -74,25 +74,18 @@
     # community.docker collection and would fail the playbook syntax check.
     - name: Ensure the upstream Distribution Registry container image is pulled
       ansible.builtin.command:
-        argv:
-          - docker
-          - pull
-          - "{{ docker_registry_proxy_molecule_upstream_image }}"
+        cmd: docker pull {{ docker_registry_proxy_molecule_upstream_image }}
       changed_when: true
 
     - name: Ensure the upstream Distribution Registry container is running
       ansible.builtin.command:
-        argv:
-          - docker
-          - run
-          - -d
-          - --name
-          - "{{ docker_registry_proxy_molecule_upstream_container_name }}"
-          - --network
-          - "{{ docker_registry_proxy_molecule_backend_network }}"
-          - -p
-          - "127.0.0.1:5000:5000"
-          - "{{ docker_registry_proxy_molecule_upstream_image }}"
+        cmd: >-
+          docker run
+          -d
+          --name {{ docker_registry_proxy_molecule_upstream_container_name }}
+          --network {{ docker_registry_proxy_molecule_backend_network }}
+          -p "127.0.0.1:5000:5000"
+          {{ docker_registry_proxy_molecule_upstream_image }}
       changed_when: true
 
     - name: Wait for the upstream Distribution Registry to answer (up to 60s)
@@ -151,27 +144,19 @@
     # to compare against.
     - name: Ensure the stock Docker Registry Proxy container image is pulled
       ansible.builtin.command:
-        argv:
-          - docker
-          - pull
-          - "ghcr.io/etkecc/docker-registry-proxy:{{ docker_registry_proxy_defaults.docker_registry_proxy_version }}"
+        cmd: docker pull ghcr.io/etkecc/docker-registry-proxy:{{ docker_registry_proxy_defaults.docker_registry_proxy_version }}
       changed_when: true
 
     - name: Ensure the standalone Docker Registry Proxy control container is running
       ansible.builtin.command:
-        argv:
-          - docker
-          - run
-          - -d
-          - --name
-          - "{{ docker_registry_proxy_molecule_control_container_name }}"
-          - --network
-          - "{{ docker_registry_proxy_molecule_backend_network }}"
-          - --user
-          - "{{ docker_registry_proxy_uid }}:{{ docker_registry_proxy_gid }}"
-          - -p
-          - "127.0.0.1:{{ docker_registry_proxy_molecule_control_bind_port }}:8080"
-          - "ghcr.io/etkecc/docker-registry-proxy:{{ docker_registry_proxy_defaults.docker_registry_proxy_version }}"
+        cmd: >-
+          docker run
+          -d
+          --name {{ docker_registry_proxy_molecule_control_container_name }}
+          --network {{ docker_registry_proxy_molecule_backend_network }}
+          --user {{ docker_registry_proxy_uid }}:{{ docker_registry_proxy_gid }}
+          -p 127.0.0.1:{{ docker_registry_proxy_molecule_control_bind_port }}:8080
+          ghcr.io/etkecc/docker-registry-proxy:{{ docker_registry_proxy_defaults.docker_registry_proxy_version }}
       changed_when: true
 
     - name: Wait for the standalone Docker Registry Proxy control container to answer (up to 60s)

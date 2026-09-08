@@ -80,8 +80,7 @@
     - name: Ensure the upstream Distribution Registry container is running
       ansible.builtin.command:
         cmd: >-
-          docker run
-          -d
+          docker run -d
           --name {{ docker_registry_proxy_molecule_upstream_container_name }}
           --network {{ docker_registry_proxy_molecule_backend_network }}
           -p "127.0.0.1:5000:5000"
@@ -150,8 +149,7 @@
     - name: Ensure the standalone Docker Registry Proxy control container is running
       ansible.builtin.command:
         cmd: >-
-          docker run
-          -d
+          docker run -d
           --name {{ docker_registry_proxy_molecule_control_container_name }}
           --network {{ docker_registry_proxy_molecule_backend_network }}
           --user {{ docker_registry_proxy_uid }}:{{ docker_registry_proxy_gid }}

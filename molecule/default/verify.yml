@@ -10,6 +10,8 @@
   become: true
   gather_facts: false
   tasks:
+    - name: Verify that Docker Registry Proxy works
+      block:
     # The role is not included in this playbook, so its defaults are not in
     # scope. Reading defaults/main.yml directly ties the version assertion
     # below.
@@ -455,3 +457,19 @@
             {{ docker_registry_proxy_cached.cache.second.x_cache }} when enabled,
             {{ docker_registry_proxy_uncached.cache.second.x_cache | default('no X-Cache header', true) }} when disabled
           - "Docker Registry Proxy metrics: {{ docker_registry_proxy_cached.metrics.authenticated.status }} with the role's credentials"
+
+      rescue:
+        # Whatever went wrong, the reason is almost always in the systemd service log.
+        - name: Retrieve the Docker Registry Proxy systemd service log
+          ansible.builtin.command:
+            cmd: journalctl --no-pager --output=cat --unit=docker-registry-proxy.service
+          register: docker_registry_proxy_service_log
+          changed_when: false
+
+        - name: Show the Docker Registry Proxy systemd service log
+          ansible.builtin.debug:
+            var: docker_registry_proxy_service_log.stdout_lines
+
+        - name: Fail because verification did not pass
+          ansible.builtin.fail:
+            msg: "Docker Registry Proxy verification failed. The systemd service log is printed above."

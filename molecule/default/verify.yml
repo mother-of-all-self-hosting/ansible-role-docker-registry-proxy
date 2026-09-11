@@ -9,6 +9,11 @@
   hosts: all
   become: true
   gather_facts: false
+
+  vars:
+    docker_registry_proxy_verify_units:
+      - docker-registry-proxy.service
+
   tasks:
     - name: Verify that Docker Registry Proxy works
       block:
@@ -114,13 +119,14 @@
         # The unit is up and the process answers where the role told it to
         # ---------------------------------------------------------------------
 
-        - name: Wait for the Docker Registry Proxy systemd service to become active (up to 180s)
+        - name: Wait for the Docker Registry Proxy systemd services to become active (up to 180s each)
           ansible.builtin.systemd_service:
-            name: docker-registry-proxy.service
-          register: docker_registry_proxy_service
-          until: docker_registry_proxy_service.status.ActiveState == 'active'
+            name: "{{ item }}"
+          register: docker_registry_proxy_services
+          until: docker_registry_proxy_services.status.ActiveState == 'active'
           retries: 36
           delay: 5
+          loop: "{{ docker_registry_proxy_verify_units }}"
           # So that giving up is reported by the assertion below rather than as a
           # wall of systemd unit properties.
           failed_when: false
@@ -128,17 +134,20 @@
         # `Restart=always` in the systemd unit means that even a container which crashes
         # and gets restarted reads as active here, so this is a precondition rather than
         # a result.
-        - name: Assert the Docker Registry Proxy systemd service is active
+        - name: Assert the Docker Registry Proxy systemd services are active
           ansible.builtin.assert:
-            that: docker_registry_proxy_service.status.ActiveState == 'active'
-            fail_msg: "docker-registry-proxy.service is not active ({{ docker_registry_proxy_service.status.ActiveState }})"
-            success_msg: "docker-registry-proxy.service is active"
+            that: docker_registry_proxy_services.results | map(attribute='status.ActiveState') | unique | list == ['active']
+            fail_msg: >-
+              Not every service is active:
+              {{ dict(docker_registry_proxy_verify_units | zip(docker_registry_proxy_services.results | map(attribute='status.ActiveState'))) }}
+            success_msg: "Every systemd service is active"
 
-        - name: Retrieve the Docker Registry Proxy systemd service log for debugging
+        - name: Retrieve the Docker Registry Proxy systemd services log for debugging
           when: docker_registry_proxy_debug_service_enabled | bool
           ansible.builtin.command:
-            cmd: journalctl --no-pager --output=cat --unit=docker-registry-proxy.service
+            cmd: "journalctl --no-pager --output=cat --unit={{ item }}"
           changed_when: false
+          loop: "{{ docker_registry_proxy_verify_units }}"
 
         # The control container, which was given no configuration, listens on the
         # image's own default of 8080. This one answers on 5080 because
@@ -431,7 +440,7 @@
         - name: Show the Docker Registry Proxy verification summary
           ansible.builtin.debug:
             msg:
-              - "Docker Registry Proxy systemd: {{ docker_registry_proxy_service.status.ActiveState }}"
+              - "Docker Registry Proxy systemd: {% for unit, state in docker_registry_proxy_verify_units | zip(docker_registry_proxy_services.results | map(attribute='status.ActiveState')) %}{{ unit }} ({{ state }}){% if not loop.last %}, {% endif %}{% endfor %}"
               - >-
                 Docker Registry Proxy version:
                 {{ docker_registry_proxy_container.Config.Labels['org.opencontainers.image.version'] }}

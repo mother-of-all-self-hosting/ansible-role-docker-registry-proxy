@@ -65,14 +65,11 @@
         # The image alone is an HTTP server that answers `/_health`. Saying so
         # explicitly is what keeps the assertions further down honest: only the
         # ones that differ from the control are the role's doing.
-        - name: Assert the stock container image answers its health endpoint on its own
+        - name: Assert Docker Registry Proxy reports itself healthy
           ansible.builtin.assert:
             that: docker_registry_proxy_control.health.status == 200
-            fail_msg: "The stock container image did not answer /_health: {{ docker_registry_proxy_control.health }}"
-            success_msg: >-
-              The stock container image answers /_health unaided, so a health
-              endpoint that answers is not by itself evidence that the role did
-              anything
+            fail_msg: "Docker Registry Proxy did not report itself healthy: {{ docker_registry_proxy_control.health | default('no response') }}"
+            success_msg: "Docker Registry Proxy reports itself healthy"
 
         # The sharpest part of the control. Given no allow lists and no target, the
         # image turns away every read - including one from the very address the

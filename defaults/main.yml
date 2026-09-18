@@ -128,6 +128,12 @@ docker_registry_proxy_container_extra_arguments: "{{ docker_registry_proxy_conta
 docker_registry_proxy_container_extra_arguments_auto: []
 docker_registry_proxy_container_extra_arguments_custom: []
 
+# A list of extra arguments to pass to the process inside the container
+# Example: ['--SOME_ARGUMENT']
+docker_registry_proxy_process_extra_arguments: "{{ docker_registry_proxy_process_extra_arguments_auto + docker_registry_proxy_process_extra_arguments_custom }}"
+docker_registry_proxy_process_extra_arguments_auto: []
+docker_registry_proxy_process_extra_arguments_custom: []
+
 # Specifies the value of the `X-XSS-Protection` header
 # Stops pages from loading when they detect reflected cross-site scripting (XSS) attacks.
 #

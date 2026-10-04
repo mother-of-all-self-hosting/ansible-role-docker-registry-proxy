@@ -25,9 +25,6 @@
     - name: Ensure Docker is installed for Docker Registry Proxy Molecule tests preparation
       ansible.builtin.include_role:
         name: ansible-role-docker
-      vars:
-        docker_daemon_options:
-          storage-driver: vfs
 
     # The role connects its container to the networks named in
     # `docker_registry_proxy_container_additional_networks_custom` but does not

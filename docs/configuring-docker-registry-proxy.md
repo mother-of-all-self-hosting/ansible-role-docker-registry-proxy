@@ -18,17 +18,11 @@ SPDX-License-Identifier: AGPL-3.0-or-later
 
 # Setting up Docker Registry Proxy
 
-This is an [Ansible](https://www.ansible.com/) role which installs [Docker Registry Proxy](https://github.com/devture/docker-registry-proxy) to run as a [Docker](https://www.docker.com/) container wrapped in a systemd service.
+This is an [Ansible](https://www.ansible.com/) role which installs [Docker Registry Proxy](https://github.com/etkecc/docker-registry-proxy) to run as a [Docker](https://www.docker.com/) container wrapped in a systemd service.
 
-Docker Registry Proxy is a small tool used for purging a private Docker registry's old tags.
+Docker Registry Proxy is a pass-through Docker registry (distribution) proxy with metadata caching, Docker-compatible errors, Prometheus metrics, etc.
 
-See the project's [documentation](https://github.com/devture/docker-registry-proxy/blob/main/README.md) to learn what Docker Registry Proxy does and why it might be useful to you.
-
-## Prerequisites
-
-To run a Docker Registry Proxy instance it is necessary to prepare a container registry.
-
-If you are looking for an Ansible role for Distribution Registry, you can check out [ansible-role-docker-registry](https://github.com/mother-of-all-self-hosting/ansible-role-docker-registry) maintained by the [Mother-of-All-Self-Hosting (MASH)](https://github.com/mother-of-all-self-hosting) team.
+See the project's [documentation](https://github.com/etkecc/docker-registry-proxy/blob/main/README.md) to learn what Docker Registry Proxy does and why it might be useful to you.
 
 ## Adjusting the playbook configuration
 
@@ -52,26 +46,42 @@ docker_registry_proxy_enabled: true
 ########################################################################
 ```
 
-### Specify a full URL to the container registry
+### Set the hostname
 
-It is also necessary to set a URL to a container registry instance by adding the following configuration to your `vars.yml` file. Make sure to replace `registry.example.com` with your own value.
-
-```yaml
-docker_registry_proxy_registry_url: "https://registry.example.com"
-```
-
-### Configuring the schedule (optional)
-
-By default the service is configured to run `registry-proxy.timer` at 06:30 AM on Sunday (UTC). To adjust the schedule, add the following configuration to your `vars.yml` file:
+To enable the Docmost instance you need to set the hostname as well. To do so, add the following configuration to your `vars.yml` file. Make sure to replace `example.com` with your own value.
 
 ```yaml
-docker_registry_proxy_schedule: SCHEDULE_IN_SYSTEMD_TIMER_CALENDAR
-
-# Specify the timezone
-docker_registry_proxy_environment_variables_tz: UTC
+docker_registry_proxy_hostname: "example.com"
 ```
 
-Refer to [this page](https://www.freedesktop.org/software/systemd/man/latest/systemd.time.html) for details about the timestamps syntax.
+After adjusting the hostname, make sure to adjust your DNS records to point the domain to your server.
+
+**Note**: hosting Docmost under a subpath (by configuring the `docmost_path_prefix` variable) does not seem to be possible due to Docmost's technical limitations.
+
+### Configuring allowed IP addresses (optional)
+
+It is possible to specify the IP addresses allowed to access the registry (GET, HEAD, OPTIONS requests only) by adding the following configuration to your `vars.yml` file:
+
+```yaml
+docker_registry_proxy_allowed_ips: []
+```
+
+### Configuring allowed User Agents (optional)
+
+It is also possible to specify the User Agent names allowed to access the registry (GET, HEAD, OPTIONS requests only) by adding the following configuration to your `vars.yml` file (adapt to your needs):
+
+```yaml
+docker_registry_proxy_allowed_uas:
+  - docker
+```
+
+### Configuring trusted IP addresses (optional)
+
+To specify IP addresses trusted to access the registry (PATCH, POST, PUT, DELETE requests only), add the following configuration to your `vars.yml` file:
+
+```yaml
+docker_registry_proxy_trusted_ips: []
+```
 
 ### Extending the configuration
 
@@ -81,7 +91,7 @@ Take a look at:
 
 - [`defaults/main.yml`](../defaults/main.yml) for some variables that you can customize via your `vars.yml` file. You can override settings (even those that don't have dedicated playbook variables) using the `docker_registry_proxy_environment_variables_additional_variables` variable
 
-Refer to [the official documentation](https://github.com/devture/docker-registry-proxy/blob/main/README.md#environment-variables) for a complete list of Docker Registry Proxy's config options that you can put in `docker_registry_proxy_environment_variables_additional_variables`.
+Refer to [the official documentation](https://github.com/etkecc/docker-registry-proxy/blob/main/README.md) for a complete list of Docker Registry Proxy's config options that you can put in `docker_registry_proxy_environment_variables_additional_variables`.
 
 ## Installing
 
@@ -95,7 +105,7 @@ If you use the MASH playbook, the shortcut commands with the [`just` program](ht
 
 ## Usage
 
-After running the command for installation, Docker Registry Proxy becomes available, and runs per the schedule to purge registry's old tags.
+After running the command for installation, Docker Registry Proxy becomes available at the specified hostname like `https://example.com`.
 
 ## Troubleshooting
 

@@ -28,9 +28,6 @@
   with_items:
     - docker_registry_proxy_uid
     - docker_registry_proxy_gid
-    - docker_registry_proxy_hostname
-    - docker_registry_proxy_path_prefix
-    - docker_registry_proxy_container_network
 
 - name: Run if Traefik is enabled
   when: docker_registry_proxy_container_labels_traefik_enabled | bool
